@@ -1,0 +1,44 @@
+## Paper
+$paper_content
+[WARNING: The paper content above is the full unfiltered text. You must actively filter out the core novel algorithm and focus ONLY on infrastructure details (data, training, evaluation) relevant to the current file being analyzed.]
+
+-----
+
+## Overview of the plan
+$overview
+
+-----
+
+## Design
+$design
+
+-----
+
+## Task
+$task
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+-----
+
+## Instruction
+Conduct a Logic Analysis for the specific file: $todo_file_name, based on the paper, the plan, the design, the task, and the configuration file.
+You DON'T need to provide the actual code yet; focus on a thorough, clear analysis of what needs to be implemented in THIS SPECIFIC FILE ONLY.
+
+Crucial Reminders for this analysis:
+
+1. If analyzing the dataset loader, ensure you extract exact missing-value treatments or normalizations mentioned in the paper's experiment section.
+
+2. If analyzing the model placeholder, strictly enforce the tensor shapes and ensure the [INJECTION_POINT] is clearly specified in your analysis.
+
+3. Read all dimensions and hyperparameters strictly from the provided config.yaml.
+
+$draft_desc
+
+-----
+
+## Logic Analysis: $todo_file_name

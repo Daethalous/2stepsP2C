@@ -1,0 +1,36 @@
+Your goal is to create a concise, usable, and complete software system design for the EXPERIMENTAL INFRASTRUCTURE AND BASELINE ONLY. Do NOT attempt to design the paper's novel algorithm.
+
+Based on the baseline plan provided, please design a concise, usable, and complete software system for data loading, training/evaluation loops, and the placeholder model.
+Keep the architecture simple and make effective use of open-source libraries.
+
+-----
+
+## Format Example
+[CONTENT]
+{
+    "Implementation approach": "We will build the experimental infrastructure using PyTorch...",
+    "File list": [
+        "main.py",  
+        "dataset_loader.py", 
+        "model_placeholder.py",  
+        "trainer.py",
+        "evaluation.py" 
+    ],
+    "Data structures and interfaces": "\nclassDiagram\n    class Main {\n        +__init__()\n        +run_experiment()\n    }\n    class DatasetLoader {\n        +__init__(config: dict)\n        +load_data() -> DataLoader\n    }\n    class PlaceholderModel {\n        +__init__(params: dict)\n        +forward(x: Tensor[B, L, N]) -> Tensor[B, S, N]\n        %% [INJECTION_POINT: INSERT NOVEL ALGORITHM HERE]\n    }\n    class Trainer {\n        +__init__(model: PlaceholderModel, data: DataLoader)\n        +train() -> None\n    }\n    class Evaluation {\n        +__init__(model: PlaceholderModel, data: DataLoader)\n        +evaluate() -> dict\n    }\n    Main --> DatasetLoader\n    Main --> Trainer\n    Main --> Evaluation\n    Trainer --> PlaceholderModel\n",
+    "Program call flow": "\nsequenceDiagram\n    participant M as Main\n    participant DL as DatasetLoader\n    participant MD as PlaceholderModel\n    participant TR as Trainer\n    participant EV as Evaluation\n    M->>DL: load_data()\n    DL-->>M: dataset\n    M->>MD: initialize PlaceholderModel()\n    M->>TR: train(model, dataset)\n    TR->>MD: forward(x: Tensor[B, L, N])\n    MD-->>TR: predictions: Tensor[B, S, N]\n    TR-->>M: training complete\n    M->>EV: evaluate(model, dataset)\n    EV->>MD: forward(x: Tensor[B, L, N])\n    MD-->>EV: predictions: Tensor[B, S, N]\n    EV-->>M: metrics\n",
+    "Anything UNCLEAR": "Need clarification on the exact dataset format and any specialized hyperparameters."
+}
+[/CONTENT]
+
+## Nodes: "<node>: <type>  # <instruction>"
+- Implementation approach: <class 'str'>  # Summarize the chosen solution strategy for the infrastructure and placeholder.
+- File list: typing.List[str]  # Only need relative paths. ALWAYS write a main.py or app.py here.
+- Data structures and interfaces: typing.Optional[str]  # Use mermaid classDiagram code syntax, including classes, method(__init__ etc.) and functions with type annotations, CLEARLY MARK the RELATIONSHIPS between classes, and comply with PEP8 standards. YOU MUST include exact Tensor shapes in the method signatures (e.g., forward(x: Tensor[B, L, N]) -> Tensor[B, S, N]). For the placeholder model class, clearly add a comment or method marked with [INJECTION_POINT: INSERT NOVEL ALGORITHM HERE] to indicate where future algorithmic modifications should occur.
+- Program call flow: typing.Optional[str] # Use sequenceDiagram code syntax, COMPLETE and VERY DETAILED, using CLASSES AND API DEFINED ABOVE accurately, covering the CRUD AND INIT of each object, SYNTAX MUST BE CORRECT.
+- Anything UNCLEAR: <class 'str'>  # Mention ambiguities and ask for clarifications.
+
+## Constraint
+Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+
+## Action
+Follow the instructions for the nodes, generate the output, and ensure it follows the format example.

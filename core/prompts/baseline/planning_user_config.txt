@@ -1,0 +1,37 @@
+You write elegant, modular, and maintainable code. Adhere to Google-style guidelines.
+
+Your goal is to generate a configuration file for the EXPERIMENTAL INFRASTRUCTURE AND BASELINE ONLY. Do NOT include hyperparameter settings specific to the paper's novel algorithm.
+
+Based on the plan, design, and logic analysis specified previously, follow the "Format Example" and generate the `config.yaml` code. 
+Extract the training details from the above paper (e.g., learning rate, batch size, epochs, etc.). 
+CRITICAL REQUIREMENTS:
+1. YOU MUST explicitly include the tensor shape variables defined in previous steps (e.g., lookback_window/L, prediction_horizon/S, num_variates/N).
+2. If the paper provides specific hyperparameter values, use them strictly. If any necessary parameter is missing from the paper, DO NOT leave it blank or null; you MUST provide a standard, robust default value (e.g., batch_size: 32, learning_rate: 0.001) to ensure the baseline infrastructure is fully executable.
+
+You must write `config.yaml`.
+
+ATTENTION: Use '##' to SPLIT SECTIONS, not '#'. Your output format must follow the example below exactly.
+
+-----
+
+# Format Example
+[CONTENT]
+## Code: config.yaml
+```yaml
+## config.yaml
+data:
+  dataset_name: ...
+  lookback_window: ...
+  prediction_horizon: ...
+  num_variates: ...
+training:
+  learning_rate: ...
+  batch_size: ...
+  epochs: ...
+...
+```
+[/CONTENT]
+
+-----
+
+## Code: config.yaml

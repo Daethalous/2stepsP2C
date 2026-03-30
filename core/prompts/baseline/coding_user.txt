@@ -1,0 +1,69 @@
+# Context
+## Paper
+$paper_content
+[WARNING: The paper content above is the full unfiltered text. You must actively filter out the core novel algorithm and focus ONLY on infrastructure details relevant to the code.]
+
+-----
+
+## Overview of the plan
+$overview
+
+-----
+
+## Design
+$design
+
+-----
+
+## Task
+$task
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+-----
+
+## Code Files
+$code_files
+
+-----
+
+# Format example
+## Code: $todo_file_name
+```python
+## $todo_file_name
+...
+```
+
+-----
+
+# Instruction
+Based on the paper, plan, design, task, and the configuration file (config.yaml) specified previously, follow the "Format example" and write the code.
+
+We have $done_file_lst.
+Next, you must write only the "$todo_file_name".
+
+Only One file: do your best to implement THIS ONLY ONE FILE.
+
+COMPLETE CODE: Your code will be part of the entire project, so please implement complete, reliable, reusable code snippets. Write out EVERY CODE DETAIL, DON'T LEAVE TODO.
+
+Set default value: ALWAYS SET A DEFAULT VALUE, ALWAYS USE STRONG TYPE HINTS (e.g., -> torch.Tensor), AND EXPLICIT VARIABLES. AVOID circular imports.
+
+Follow design: YOU MUST FOLLOW "Data structures and interfaces". DONT CHANGE ANY DESIGN.
+
+CAREFULLY CHECK THAT YOU DONT MISS ANY NECESSARY CLASS/FUNCTION IN THIS FILE.
+
+Before using an external variable/module, make sure you import it first.
+
+REFER TO CONFIGURATION: You must dynamically load settings from "config.yaml". DO NOT FABRICATE or hardcode any configuration values (like seq_len, pred_len, or batch_size).
+
+DEFENSIVE PROGRAMMING: Add shape assertions (e.g., assert x.shape == (batch_size, seq_len, num_vars)) based on the expected_tensors section in the config.
+
+INJECTION POINT: If you are writing the model placeholder file, you MUST include the exact comment # [INJECTION_POINT: INSERT NOVEL ALGORITHM HERE].
+
+$detailed_logic_analysis
+
+## Code: $todo_file_name

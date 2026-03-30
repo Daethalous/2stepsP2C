@@ -1,0 +1,76 @@
+## Paper
+$paper_content
+The paper content above is pre-filtered for this stage; prioritize it over missing sections.
+
+-----
+
+## Overview of the plan
+$overview
+
+-----
+
+## Design
+$design
+
+-----
+
+## Task
+$task
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+-----
+
+## Baseline Code for This File
+```python
+$baseline_file_code
+```
+-----
+
+## Injection Info for This File
+$injection_info
+
+-----
+
+## Instruction
+Based on the paper, the injection plan, and the baseline code shown above, conduct a detailed modification analysis for this file.
+Describe exactly what code to add, remove, or change. You DON'T need to provide the actual code yet; focus on a thorough, clear analysis.
+
+$draft_desc
+
+-----
+
+## Modification Analysis: $todo_file_name
+
+-----
+
+## Required Output Format
+Output MUST be wrapped in [CONTENT][/CONTENT] and contain exactly one valid JSON object.
+No extra text outside [CONTENT][/CONTENT].
+
+[CONTENT]
+{
+  "file": "$todo_file_name",
+  "modification_steps": ["string"],
+  "interface_contract_checklist": {
+    "metadata_schema": "compatible|needs_change",
+    "checkpoint_keys": "compatible|needs_change",
+    "function_signatures": "compatible|needs_change",
+    "caller_impacts": ["string"],
+    "callee_impacts": ["string"]
+  },
+  "config_keys_used": ["string"],
+  "test_focus": ["string"],
+  "blocked_items": [
+    {
+      "item": "string",
+      "reason": "string",
+      "required_follow_up": "string"
+    }
+  ]
+}
+[/CONTENT]

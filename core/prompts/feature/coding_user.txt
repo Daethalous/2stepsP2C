@@ -1,0 +1,74 @@
+# Context
+## Paper
+$paper_content
+The paper content above is pre-filtered for this stage; prioritize it over missing sections.
+
+-----
+
+## Overview of the plan
+$overview
+
+-----
+
+## Design
+$design
+
+-----
+
+## Task
+$task
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+-----
+
+## Baseline Code for This File
+```python
+$baseline_file_code
+```
+-----
+
+## Code Files (already modified in this session)
+$code_files
+
+-----
+
+# Format example
+## Code: $todo_file_name
+```python
+## $todo_file_name
+...
+```
+
+-----
+
+# Instruction
+Based on the paper, plan, design, task, configuration file, and the baseline code shown above, follow "Format example", write the COMPLETE modified file.
+
+We have $done_file_lst.
+Next, you must write only the "$todo_file_name".
+1. Only One file: do your best to implement THIS ONLY ONE FILE.
+2. COMPLETE CODE: Output the COMPLETE file content. You are modifying the file
+   IN-PLACE in an existing repository. Preserve all existing infrastructure code
+   and only change what the modification analysis specifies. Your output will
+   REPLACE the current file content entirely.
+3. Set default value: If there is any setting, ALWAYS SET A DEFAULT VALUE, ALWAYS USE STRONG TYPE AND EXPLICIT VARIABLE. AVOID circular import.
+4. Follow design: YOU MUST FOLLOW the injection plan. Maintain the same interfaces so unchanged files continue to work.
+5. CAREFULLY CHECK THAT YOU DONT MISS ANY NECESSARY CLASS/FUNCTION IN THIS FILE.
+6. Before using a external variable/module, make sure you import it first.
+7. Write out EVERY CODE DETAIL, DON'T LEAVE TODO.
+8. REFER TO CONFIGURATION: you must use configuration from "config.yaml". DO NOT FABRICATE any configuration values.
+9. NO PLACEHOLDERS: Do NOT leave any `raise NotImplementedError(...)`, `# TODO`,
+   or placeholder comments for the paper's algorithms. Implement everything fully.
+10. CONTRACT CONSISTENCY: keep metadata schema keys, checkpoint key names, and
+    externally consumed function signatures compatible with unchanged files.
+11. OUTPUT FORMAT: output only the final complete code for `$todo_file_name`.
+    Do NOT output explanations, markdown prose, or extra files.
+
+$detailed_logic_analysis
+
+## Code: $todo_file_name

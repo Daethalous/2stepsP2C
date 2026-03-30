@@ -1,0 +1,58 @@
+# Context
+## Paper
+$paper_content
+
+-----
+
+## Overview of the plan
+$overview
+
+-----
+
+## Design
+$design
+
+-----
+
+## Task
+$task
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+-----
+
+## Code Files
+$code_files
+
+-----
+
+# Format example
+## Code: $todo_file_name
+```python
+## $todo_file_name
+...
+```
+
+-----
+
+# Instruction
+Based on the paper, plan, design, task and configuration file(config.yaml) specified previously, follow "Format example", write the code. 
+
+We have $done_file_lst.
+Next, you must write only the "$todo_file_name".
+1. Only One file: do your best to implement THIS ONLY ONE FILE.
+2. COMPLETE CODE: Your code will be part of the entire project, so please implement complete, reliable, reusable code snippets.
+3. Set default value: If there is any setting, ALWAYS SET A DEFAULT VALUE, ALWAYS USE STRONG TYPE AND EXPLICIT VARIABLE. AVOID circular import.
+4. Follow design: YOU MUST FOLLOW "Data structures and interfaces". DONT CHANGE ANY DESIGN. Do not use public member functions that do not exist in your design.
+5. CAREFULLY CHECK THAT YOU DONT MISS ANY NECESSARY CLASS/FUNCTION IN THIS FILE.
+6. Before using a external variable/module, make sure you import it first.
+7. Write out EVERY CODE DETAIL, DON'T LEAVE TODO.
+8. REFER TO CONFIGURATION: you must use configuration from "config.yaml". DO NOT FABRICATE any configuration values.
+
+$detailed_logic_analysis
+
+## Code: $todo_file_name

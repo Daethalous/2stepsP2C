@@ -1,0 +1,45 @@
+﻿## Paper
+$paper_content
+
+-----
+
+## Baseline Repository Summary
+$baseline_repo_summary
+
+-----
+
+## Task
+Generate a planning result for feature injection.
+
+## Required Output Format
+Output MUST be wrapped in [CONTENT][/CONTENT] and contain exactly one valid JSON object.
+Do not output any text outside [CONTENT][/CONTENT].
+
+[CONTENT]
+{
+  "Plan Summary": "string",
+  "Method Requirements": ["string"],
+  "File-Level Strategy": [
+    {
+      "file": "string",
+      "action": "modify|create|keep",
+      "reason": "string"
+    }
+  ],
+  "Infrastructure Boundaries": ["string"],
+  "Risk List": ["string"],
+  "Anything UNCLEAR": "string"
+}
+[/CONTENT]
+
+## Hard Constraints
+- You MUST plan the full implementation of ALL novel algorithms described in the paper.
+- Do NOT plan any part as placeholder/stub/NotImplementedError.
+- If baseline contains `raise NotImplementedError(...)` for paper-required features, include explicit replacement in the plan.
+- Do NOT include narrative prose outside the JSON payload.
+- Keep all keys exactly as specified in the schema.
+
+## Self-check Before Output
+- Is the output a single valid JSON object inside [CONTENT][/CONTENT]?
+- Are all required keys present?
+- Did you avoid any extra explanatory text?

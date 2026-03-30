@@ -1,0 +1,57 @@
+Your goal is to break down the algorithm injection tasks, generate a task list of files to modify or create, and analyze dependencies.
+
+Based on the injection plan, break down the modifications into specific tasks for each file that needs to be changed or created.
+The Logic Analysis should describe the specific modifications needed for each file to inject the paper's algorithm.
+
+-----
+
+## Format Example
+[CONTENT]
+{
+    "Required packages": [
+        "numpy==1.21.0",
+        "torch==1.9.0"  
+    ],
+    "Required Other language third-party packages": [
+        "No third-party dependencies required"
+    ],
+    "Logic Analysis": [
+        [
+            "model.py",
+            "MODIFY: Replace placeholder Model class with paper's novel architecture. Specifically: ..."
+        ],
+        [
+            "losses.py",
+            "NEW: Implement paper's custom loss function. Specifically: ..."
+        ],
+        [
+            "trainer.py",
+            "MODIFY: Update training loop to use new loss function. Specifically: ..."
+        ]
+    ],
+    "Task list": [
+        "losses.py",
+        "model.py",  
+        "trainer.py"
+    ],
+    "Full API spec": "",
+    "Shared Knowledge": "The new model maintains the same input/output interface as the baseline placeholder.",
+    "Anything UNCLEAR": "Clarification needed on ..."
+}
+
+[/CONTENT]
+
+## Nodes: "<node>: <type>  # <instruction>"
+- Required packages: typing.Optional[typing.List[str]]  # List any NEW packages required by the paper's algorithm (beyond what the baseline already uses).
+- Required Other language third-party packages: typing.List[str]  # List down packages required for non-Python languages. If none, specify "No third-party dependencies required".
+- Logic Analysis: typing.List[typing.List[str]]  # For each file to modify or create, describe the specific changes. Prefix with MODIFY: or NEW: to indicate the action type.
+- Task list: typing.List[str]  # List ONLY the files that need to be modified or created, in dependency order. Do NOT include unchanged files.
+- Full API spec: <class 'str'>  # Describe all APIs using OpenAPI 3.0 spec that may be used by both frontend and backend. If front-end and back-end communication is not required, leave it blank.
+- Shared Knowledge: <class 'str'>  # Detail any shared knowledge, like interface contracts between modified and unchanged files.
+- Anything UNCLEAR: <class 'str'>  # Mention any unresolved questions or clarifications needed.
+
+## Constraint
+Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+
+## Action
+Follow the node instructions above, generate your output accordingly, and ensure it follows the given format example.

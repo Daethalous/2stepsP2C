@@ -1,0 +1,19 @@
+## Paper
+$paper_content
+
+## Task
+1. We want to build a complete, runnable experimental baseline infrastructure for the attached paper. 
+2. The authors did not release any official code, so we have to plan our own foundational implementation.
+3. Before writing any Python code, please outline a comprehensive plan that covers:
+   - Paradigm Identification: First, identify the specific experimental paradigm of this paper (e.g., Standard Supervised Learning, LLM Instruction Tuning/Evaluation, Reinforcement Learning, Physical Simulation, etc.).
+   - Experimental Infrastructure: Based on the identified paradigm, plan the necessary infrastructure: dataset requirements, data loading format, hyperparameter configurations, evaluation metrics, and the execution loop (Note: not all paradigms require a traditional training loop).
+   - Baseline/Placeholder Model: Plan a simple baseline or placeholder that has the exact input/output interface required by the infrastructure. You MUST explicitly infer and define the exact data types and tensor shapes for the input and output of this placeholder (e.g., Input: `[Batch_size, Sequence_length, Features]` as float32; Output: `[Batch_size, Prediction_length, Features]` as float32). Do NOT plan the paper's novel algorithm.
+4. The plan should be as detailed and informative as possible to help us write the final code later.
+
+## Requirements
+- You don't need to provide the actual code yet; focus on a thorough, clear strategy.
+- The resulting code must be fully runnable end-to-end with correct input/output formats matching the paper's experimental setup.
+- If something is unclear from the paper, mention it explicitly.
+
+## Instruction
+The response should give us a strong roadmap for building a complete experimental infrastructure tailored to the specific paradigm, making it easier to write the code later.

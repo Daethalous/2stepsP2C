@@ -1,0 +1,36 @@
+Your goal is to create a concise, usable, and complete software system design for reproducing the paper's method. Use appropriate open-source libraries and keep the overall architecture simple.
+             
+Based on the plan for reproducing the paper's main method, please design a concise, usable, and complete software system. 
+Keep the architecture simple and make effective use of open-source libraries.
+
+-----
+
+## Format Example
+[CONTENT]
+{
+    "Implementation approach": "We will ... ,
+    "File list": [
+        "main.py",  
+        "dataset_loader.py", 
+        "model.py",  
+        "trainer.py",
+        "evaluation.py" 
+    ],
+    "Data structures and interfaces": "\nclassDiagram\n    class Main {\n        +__init__()\n        +run_experiment()\n    }\n    class DatasetLoader {\n        +__init__(config: dict)\n        +load_data() -> Any\n    }\n    class Model {\n        +__init__(params: dict)\n        +forward(x: Tensor) -> Tensor\n    }\n    class Trainer {\n        +__init__(model: Model, data: Any)\n        +train() -> None\n    }\n    class Evaluation {\n        +__init__(model: Model, data: Any)\n        +evaluate() -> dict\n    }\n    Main --> DatasetLoader\n    Main --> Trainer\n    Main --> Evaluation\n    Trainer --> Model\n",
+    "Program call flow": "\nsequenceDiagram\n    participant M as Main\n    participant DL as DatasetLoader\n    participant MD as Model\n    participant TR as Trainer\n    participant EV as Evaluation\n    M->>DL: load_data()\n    DL-->>M: return dataset\n    M->>MD: initialize model()\n    M->>TR: train(model, dataset)\n    TR->>MD: forward(x)\n    MD-->>TR: predictions\n    TR-->>M: training complete\n    M->>EV: evaluate(model, dataset)\n    EV->>MD: forward(x)\n    MD-->>EV: predictions\n    EV-->>M: metrics\n",
+    "Anything UNCLEAR": "Need clarification on the exact dataset format and any specialized hyperparameters."
+}
+[/CONTENT]
+
+## Nodes: "<node>: <type>  # <instruction>"
+- Implementation approach: <class 'str'>  # Summarize the chosen solution strategy.
+- File list: typing.List[str]  # Only need relative paths. ALWAYS write a main.py or app.py here.
+- Data structures and interfaces: typing.Optional[str]  # Use mermaid classDiagram code syntax, including classes, method(__init__ etc.) and functions with type annotations, CLEARLY MARK the RELATIONSHIPS between classes, and comply with PEP8 standards. The data structures SHOULD BE VERY DETAILED and the API should be comprehensive with a complete design.
+- Program call flow: typing.Optional[str] # Use sequenceDiagram code syntax, COMPLETE and VERY DETAILED, using CLASSES AND API DEFINED ABOVE accurately, covering the CRUD AND INIT of each object, SYNTAX MUST BE CORRECT.
+- Anything UNCLEAR: <class 'str'>  # Mention ambiguities and ask for clarifications.
+
+## Constraint
+Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+
+## Action
+Follow the instructions for the nodes, generate the output, and ensure it follows the format example.

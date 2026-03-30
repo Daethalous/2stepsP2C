@@ -1,0 +1,35 @@
+## Paper
+$paper_content
+
+-----
+
+## Overview of the plan
+$overview
+
+-----
+
+## Design
+$design
+
+-----
+
+## Task
+$task
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+-----
+
+## Instruction
+Conduct a Logic Analysis to assist in writing the code, based on the paper, the plan, the design, the task and the previously specified configuration file (config.yaml). 
+You DON'T need to provide the actual code yet; focus on a thorough, clear analysis.
+
+$draft_desc
+
+-----
+
+## Logic Analysis: $todo_file_name

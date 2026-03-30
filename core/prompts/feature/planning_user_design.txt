@@ -1,0 +1,49 @@
+Your goal is to generate a strict architecture-injection design from baseline code.
+
+-----
+
+## Baseline Code
+$baseline_repo_code
+
+-----
+
+## Required Output Format
+Output MUST be wrapped in [CONTENT][/CONTENT] and contain exactly one valid JSON object.
+No extra text is allowed outside [CONTENT][/CONTENT].
+
+[CONTENT]
+{
+  "Baseline architecture summary": "string",
+  "Paper algorithm summary": "string",
+  "Injection points": [
+    {
+      "file": "string",
+      "location": "string",
+      "action": "replace|modify|add",
+      "description": "string"
+    }
+  ],
+  "New files needed": ["string"],
+  "Files unchanged": ["string"],
+  "Coverage check": {
+    "covered_files_count": 0,
+    "uncovered_files": []
+  },
+  "Anything UNCLEAR": "string"
+}
+[/CONTENT]
+
+## Hard Constraints
+- Every baseline file must appear in exactly one set:
+  - either in `Injection points.file`
+  - or in `Files unchanged`
+- `Injection points.file` and `Files unchanged` MUST NOT overlap.
+- For `Files unchanged`, only include files requiring truly zero changes.
+- If baseline contains `NotImplementedError`/`TODO`/`placeholder` related to paper contributions,
+  corresponding file MUST appear in `Injection points`.
+- Do not output markdown explanations or narrative text outside JSON.
+
+## Self-check Before Output
+- Is JSON valid and wrapped by [CONTENT][/CONTENT]?
+- Are all required keys present?
+- Are there zero uncovered baseline files?
