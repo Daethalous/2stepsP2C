@@ -1,15 +1,21 @@
 outputs/
 data/
-
-# Python cache and build artifacts
 __pycache__/
-*.py[cod]
+*.pyc
+.env
+debug-*.log
+
+# Python cache/build
 *.pyo
 *.pyd
+*.so
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-*.egg-info/
+.coverage
+coverage.xml
+htmlcov/
 build/
 dist/
 
@@ -18,18 +24,10 @@ dist/
 venv/
 env/
 
-# Environment and local secrets
-.env
-.env.*
-
-# Logs
-*.log
-debug-*.log
-
-# IDE/editor local files
-.cursor/
+# IDE/editor
 .vscode/
 .idea/
+.cursor/
 
 # OS files
 .DS_Store
