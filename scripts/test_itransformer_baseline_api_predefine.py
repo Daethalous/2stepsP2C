@@ -1,6 +1,5 @@
 import argparse
 import os
-import shutil
 import sys
 
 
@@ -10,7 +9,7 @@ if ROOT_DIR not in sys.path:
 
 from core.data_loader import load_pipeline_context
 from core.logger import setup_logging
-from workflow.coding import run_coding
+from workflow.api_predefine import run_api_predefine
 
 
 def _require_planning_artifacts(output_dir: str) -> None:
@@ -41,24 +40,6 @@ def _require_analyzing_artifacts(output_dir: str) -> None:
         )
 
 
-def _require_api_predefine_artifacts(output_dir: str) -> None:
-    contract_path = os.path.join(output_dir, "api_predefine_contract.pyi")
-    if not os.path.exists(contract_path):
-        raise FileNotFoundError(
-            "Missing api_predefine output under output_dir. Run baseline api_predefine first.\n"
-            f"  - {contract_path}"
-        )
-
-
-def _cleanup_previous_outputs(output_dir: str, output_repo_dir: str) -> None:
-    coding_artifacts_dir = os.path.join(output_dir, "coding_artifacts")
-    if os.path.exists(coding_artifacts_dir):
-        shutil.rmtree(coding_artifacts_dir)
-    if os.path.exists(output_repo_dir):
-        shutil.rmtree(output_repo_dir)
-    os.makedirs(output_repo_dir, exist_ok=True)
-
-
 def main() -> None:
     if not os.environ.get("OPENAI_API_KEY"):
         raise EnvironmentError("OPENAI_API_KEY is required to run this script.")
@@ -72,60 +53,29 @@ def main() -> None:
         default=os.path.join("outputs", "iTransformer_baseline_planning_extract"),
     )
     parser.add_argument(
-        "--output_repo_dir",
-        type=str,
-        default=os.path.join("outputs", "iTransformer_baseline_planning_extract_repo"),
-    )
-    parser.add_argument(
         "--pdf_json_path",
         type=str,
         default=os.path.join(
             "data", "paper2code", "paper2code_data", "iclr2024", "iTransformer_cleaned.json"
         ),
     )
-    parser.add_argument(
-        "--skip_cleanup",
-        action="store_true",
-        help="Skip deleting previous coding artifacts and generated repo files",
-    )
-    parser.add_argument(
-        "--require_api_predefine",
-        action="store_true",
-        default=True,
-        help="Require api_predefine_contract.pyi before coding (default: enabled)",
-    )
-    parser.add_argument(
-        "--no-require_api_predefine",
-        dest="require_api_predefine",
-        action="store_false",
-        help="Do not require api_predefine_contract.pyi before coding",
-    )
     args = parser.parse_args()
 
     _require_planning_artifacts(args.output_dir)
     _require_analyzing_artifacts(args.output_dir)
-    if args.require_api_predefine:
-        _require_api_predefine_artifacts(args.output_dir)
-    if not args.skip_cleanup:
-        _cleanup_previous_outputs(args.output_dir, args.output_repo_dir)
-    else:
-        os.makedirs(args.output_repo_dir, exist_ok=True)
 
-    run_coding(
+    run_api_predefine(
         paper_name=args.paper_name,
         gpt_version=args.gpt_version,
         output_dir=args.output_dir,
-        output_repo_dir=args.output_repo_dir,
         paper_format="JSON",
         pdf_json_path=args.pdf_json_path,
         pdf_latex_path=None,
         prompt_set="baseline",
-        baseline_repo_dir=None,
-        live_repo_dir=None,
     )
 
-    print(f"[DONE] coding artifacts: {os.path.join(args.output_dir, 'coding_artifacts')}")
-    print(f"[DONE] output_repo_dir: {args.output_repo_dir}")
+    print(f"[DONE] api contract: {os.path.join(args.output_dir, 'api_predefine_contract.pyi')}")
+    print(f"[DONE] api artifacts: {os.path.join(args.output_dir, 'api_predefine_artifacts')}")
     print(f"[DONE] accumulated_cost: {os.path.join(args.output_dir, 'accumulated_cost.json')}")
 
 

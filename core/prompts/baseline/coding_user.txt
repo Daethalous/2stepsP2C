@@ -31,6 +31,13 @@ $code_files
 
 -----
 
+## Global API Contract (Stub)
+```python
+$global_api_contract_stub
+```
+
+-----
+
 # Format example
 ## Code: $todo_file_name
 ```python
@@ -63,6 +70,8 @@ REFER TO CONFIGURATION: You must dynamically load settings from "config.yaml". D
 DEFENSIVE PROGRAMMING: Add shape assertions (e.g., assert x.shape == (batch_size, seq_len, num_vars)) based on the expected_tensors section in the config.
 
 INJECTION POINT: If you are writing the model placeholder file, you MUST include the exact comment # [INJECTION_POINT: INSERT NOVEL ALGORITHM HERE].
+
+API CONTRACT CONSISTENCY: You must follow "Global API Contract (Stub)" for function signatures, parameter names, return types, and interface compatibility.
 
 $detailed_logic_analysis
 

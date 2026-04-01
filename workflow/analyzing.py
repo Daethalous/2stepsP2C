@@ -2,7 +2,7 @@ import json
 import os
 from tqdm import tqdm
 from core.llm_engine import create_client, chat_completion_with_retry
-from core.data_loader import load_paper_content, load_pipeline_context
+from core.data_loader import load_paper_content, load_pipeline_context, sanitize_todo_file_name
 from core.logger import get_logger
 from core.prompts.templates import render_prompt
 from core.utils import (print_response, print_log_cost, load_accumulated_cost,
@@ -53,6 +53,25 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
             _prompt_path(prompt_set, "analyzing_system.txt"),
             paper_format=paper_format)}]
 
+    def _load_feature_file_code(todo_file_name: str):
+        candidates = [todo_file_name]
+        clean_name = sanitize_todo_file_name(todo_file_name)
+        if clean_name and clean_name not in candidates:
+            candidates.append(clean_name)
+        if prompt_set == "feature" and live_repo_dir:
+            for candidate in candidates:
+                live_path = os.path.join(live_repo_dir, candidate)
+                if os.path.exists(live_path) and os.path.isfile(live_path):
+                    with open(live_path, "r", encoding="utf-8") as lf:
+                        return lf.read(), "live"
+        if prompt_set == "feature" and baseline_repo_dir:
+            for candidate in candidates:
+                baseline_path = os.path.join(baseline_repo_dir, candidate)
+                if os.path.exists(baseline_path) and os.path.isfile(baseline_path):
+                    with open(baseline_path, "r", encoding="utf-8") as bf:
+                        return bf.read(), "baseline"
+        return None, "new"
+
     def get_write_msg(todo_file_name, todo_file_desc):
         draft_desc = f"Write the logic analysis in '{todo_file_name}', which is intended for '{todo_file_desc}'."
         if len(todo_file_desc.strip()) == 0:
@@ -60,25 +79,16 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
 
         extra_kwargs = {}
         if prompt_set == "feature" and baseline_repo_dir:
-            file_code = None
-            if live_repo_dir:
-                live_path = os.path.join(live_repo_dir, todo_file_name)
-                if os.path.exists(live_path):
-                    with open(live_path, "r", encoding="utf-8") as lf:
-                        file_code = lf.read()
+            file_code, code_source = _load_feature_file_code(todo_file_name)
             if file_code is None:
-                baseline_file_path = os.path.join(baseline_repo_dir, todo_file_name)
-                if os.path.exists(baseline_file_path):
-                    with open(baseline_file_path, "r", encoding="utf-8") as bf:
-                        file_code = bf.read()
-            if file_code is None:
-                extra_kwargs["baseline_file_code"] = "(new file — no baseline code)"
+                extra_kwargs["baseline_file_code"] = "(new file — no baseline/live code)"
             else:
                 sig = extract_interface_signatures(file_code, max_lines=120)
                 compact_code = file_code[:14000]
                 if len(file_code) > 14000:
                     compact_code += "\n...(truncated for token budget)..."
                 extra_kwargs["baseline_file_code"] = (
+                    f"### Source: {code_source}\n"
                     "### Interface Signatures\n"
                     f"{sig}\n\n"
                     "### Code Snapshot\n"
@@ -115,17 +125,18 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
         if todo_file_name == "config.yaml":
             continue
 
-        _skip_name = todo_file_name.replace("/", "_")
-        _skip_path = f'{artifact_output_dir}/{_skip_name}_simple_analysis.txt'
+        clean_todo_file_name = sanitize_todo_file_name(todo_file_name)
+        _skip_name = clean_todo_file_name.replace("/", "_")
+        _skip_path = os.path.join(artifact_output_dir, f"{_skip_name}_simple_analysis.txt")
         if os.path.exists(_skip_path):
             logger.info(f"  [SKIP] artifact already exists: {_skip_path}")
-            done_file_lst.append(todo_file_name)
+            done_file_lst.append(clean_todo_file_name)
             continue
 
-        if todo_file_name not in logic_analysis_dict:
-            logic_analysis_dict[todo_file_name] = ""
+        if clean_todo_file_name not in logic_analysis_dict:
+            logic_analysis_dict[clean_todo_file_name] = ""
             
-        instruction_msg = get_write_msg(todo_file_name, logic_analysis_dict[todo_file_name])
+        instruction_msg = get_write_msg(clean_todo_file_name, logic_analysis_dict[clean_todo_file_name])
         trajectories.extend(instruction_msg)
 
         completion = None
@@ -151,7 +162,7 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
                     f"with required keys: {required}. No extra text."
                 ),
             })
-            logger.warning(f"[ANALYSIS] Schema invalid for {todo_file_name}, retry {attempt+1}/3")
+            logger.warning(f"[ANALYSIS] Schema invalid for {clean_todo_file_name}, retry {attempt+1}/3")
         responses.append(completion_json)
         
         message = completion.choices[0].message
@@ -161,18 +172,18 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
         temp_total_accumulated_cost = print_log_cost(completion_json, gpt_version, current_stage, output_dir, total_accumulated_cost)
         total_accumulated_cost = temp_total_accumulated_cost
 
-        save_todo_file_name = todo_file_name.replace("/", "_")
-        artifact_file_path = f'{artifact_output_dir}/{save_todo_file_name}_simple_analysis.txt'
+        save_todo_file_name = clean_todo_file_name.replace("/", "_")
+        artifact_file_path = os.path.join(artifact_output_dir, f"{save_todo_file_name}_simple_analysis.txt")
         os.makedirs(os.path.dirname(artifact_file_path), exist_ok=True)
         with open(artifact_file_path, 'w') as f:
             f.write(completion_json['choices'][0]['message']['content'])
 
-        done_file_lst.append(todo_file_name)
+        done_file_lst.append(clean_todo_file_name)
 
-        with open(f'{output_dir}/{save_todo_file_name}_simple_analysis_response.json', 'w') as f:
+        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_response.json"), 'w') as f:
             json.dump(responses, f)
 
-        with open(f'{output_dir}/{save_todo_file_name}_simple_analysis_trajectories.json', 'w') as f:
+        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_trajectories.json"), 'w') as f:
             json.dump(trajectories, f)
 
     save_accumulated_cost(f"{output_dir}/accumulated_cost.json", total_accumulated_cost)

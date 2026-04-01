@@ -256,7 +256,7 @@ def main():
                         help="Baseline repo path (required for feature mode)")
     parser.add_argument('--stages', type=str, nargs='+',
                         default=["preprocess", "planning", "extract",
-                                 "analyzing", "coding",
+                                 "analyzing", "api_predefine", "coding",
                                  "eval_ref_free", "eval_ref_based"])
     args = parser.parse_args()
 

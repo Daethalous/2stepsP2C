@@ -11,13 +11,14 @@ from core.parser.pdf_process import run_pdf_process
 from workflow.planning import run_planning
 from workflow.extracting_artifacts import run_extracting_artifacts
 from workflow.analyzing import run_analyzing
+from workflow.api_predefine import run_api_predefine
 from workflow.coding import run_coding
 
 logger = get_logger(__name__)
 
 PROMPT_SET = "baseline"
 
-DEFAULT_STAGES = ["preprocess", "planning", "extract", "analyzing", "coding"]
+DEFAULT_STAGES = ["preprocess", "planning", "extract", "analyzing", "api_predefine", "coding"]
 
 
 def run_baseline_pipeline(paper_name: str,
@@ -67,6 +68,18 @@ def run_baseline_pipeline(paper_name: str,
     if "analyzing" in stages:
         logger.info("------- [Baseline] Analyzing -------")
         run_analyzing(
+            paper_name=paper_name,
+            gpt_version=gpt_version,
+            output_dir=output_dir,
+            paper_format=paper_format,
+            pdf_json_path=cleaned_json_path,
+            pdf_latex_path=pdf_latex_path,
+            prompt_set=PROMPT_SET,
+        )
+
+    if "api_predefine" in stages:
+        logger.info("------- [Baseline] API Predefine -------")
+        run_api_predefine(
             paper_name=paper_name,
             gpt_version=gpt_version,
             output_dir=output_dir,

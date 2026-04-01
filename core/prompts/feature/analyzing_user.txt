@@ -31,13 +31,22 @@ $baseline_file_code
 ```
 -----
 
+## File Source Note
+`baseline_file_code` may come from:
+- live repo (preferred),
+- baseline repo fallback,
+- or `(new file — no baseline/live code)`.
+If it is a new file, design the file to integrate with unchanged repository interfaces.
+
+-----
+
 ## Injection Info for This File
 $injection_info
 
 -----
 
 ## Instruction
-Based on the paper, the injection plan, and the baseline code shown above, conduct a detailed modification analysis for this file.
+Based on the paper, the injection plan, and the baseline code shown above, conduct a detailed in-place modification analysis for this file.
 Describe exactly what code to add, remove, or change. You DON'T need to provide the actual code yet; focus on a thorough, clear analysis.
 
 $draft_desc

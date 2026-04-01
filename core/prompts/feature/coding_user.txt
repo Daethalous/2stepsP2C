@@ -32,6 +32,11 @@ $baseline_file_code
 ```
 -----
 
+## Unchanged File References (for new-file integration)
+$existing_files_summary
+
+-----
+
 ## Code Files (already modified in this session)
 $code_files
 
@@ -68,6 +73,10 @@ Next, you must write only the "$todo_file_name".
     externally consumed function signatures compatible with unchanged files.
 11. OUTPUT FORMAT: output only the final complete code for `$todo_file_name`.
     Do NOT output explanations, markdown prose, or extra files.
+12. ENTRY INTEGRATION: if this is an entry/factory/registry file, make sure
+    newly introduced modules/classes/functions are wired into runtime flow.
+
+$integration_hint
 
 $detailed_logic_analysis
 

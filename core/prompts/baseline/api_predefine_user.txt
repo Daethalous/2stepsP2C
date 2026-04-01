@@ -1,0 +1,61 @@
+## Paper
+$paper_content
+[WARNING: The paper content above is full text. Ignore the novel algorithm and keep only baseline infrastructure constraints.]
+
+-----
+
+## Overview of the plan
+$overview
+
+-----
+
+## Design
+$design
+
+-----
+
+## Task
+$task
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+
+-----
+
+## Target file list
+$todo_file_lst
+
+-----
+
+## Condensed logic analysis (core only)
+$analyzing_outputs_summary
+
+-----
+
+## Required output format
+Return ONLY one Python code block in .pyi-style, containing a global contract stub.
+
+You MUST follow this pattern:
+
+```python
+# [GLOBAL API CONTRACT]
+# src/example_file.py
+class ExampleClass:
+    def method(self, x: int) -> int:
+        """Brief contract note."""
+        pass
+
+# src/another_file.py
+def example_func(a: str, b: float) -> tuple[str, float]:
+    pass
+```
+
+Constraints:
+- Keep signatures compatible across files.
+- Include tensor shape/dtype notes in docstrings where needed.
+- Do not include implementation logic.
+- Do not output anything except the single code block.

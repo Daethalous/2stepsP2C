@@ -1,8 +1,8 @@
-Your goal is to generate a strict architecture-injection design from baseline code.
+Your goal is to generate a strict in-place incremental refactor design from baseline code.
 
 -----
 
-## Baseline Code
+## Baseline (Live Repo) Code
 $baseline_repo_code
 
 -----
@@ -34,6 +34,8 @@ No extra text is allowed outside [CONTENT][/CONTENT].
 [/CONTENT]
 
 ## Hard Constraints
+- This is an in-place refactor plan, not a full rewrite plan.
+- Prefer minimal edits to existing files; add new files only when truly needed.
 - Every baseline file must appear in exactly one set:
   - either in `Injection points.file`
   - or in `Files unchanged`

@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import shutil
 import sys
 
 from core.exceptions import PipelineError
@@ -34,7 +35,21 @@ def run_feature_pipeline(paper_name: str,
         stages = list(DEFAULT_STAGES)
 
     os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(output_repo_dir, exist_ok=True)
+
+    baseline_repo_dir = os.path.abspath(baseline_repo_dir)
+    output_repo_dir = os.path.abspath(output_repo_dir)
+    if not os.path.isdir(baseline_repo_dir):
+        raise PipelineError(f"baseline_repo_dir not found or not a directory: {baseline_repo_dir}")
+
+    if baseline_repo_dir == output_repo_dir:
+        logger.info(f"[Feature][In-Place] live repo == baseline repo: {output_repo_dir}")
+    elif not os.path.exists(output_repo_dir):
+        logger.info(f"[Feature][In-Place] initializing live repo from baseline: {output_repo_dir}")
+        shutil.copytree(baseline_repo_dir, output_repo_dir)
+    elif not os.path.isdir(output_repo_dir):
+        raise PipelineError(f"output_repo_dir exists but is not a directory: {output_repo_dir}")
+    else:
+        logger.info(f"[Feature][In-Place] using existing live repo: {output_repo_dir}")
 
     cleaned_json_path = None
     if pdf_json_path:
@@ -56,11 +71,19 @@ def run_feature_pipeline(paper_name: str,
     if "extract" in stages:
         logger.info("------- [Feature] Extract Artifacts -------")
         run_extracting_artifacts(output_dir=output_dir)
-        merge_yaml_configs(
-            base_path=f"{output_repo_dir}/config.yaml",
-            overlay_path=f"{output_dir}/planning_config.yaml",
-            output_path=f"{output_repo_dir}/config.yaml",
-        )
+        base_cfg = os.path.join(output_repo_dir, "config.yaml")
+        overlay_cfg = os.path.join(output_dir, "planning_config.yaml")
+        if os.path.exists(base_cfg) and os.path.exists(overlay_cfg):
+            merge_yaml_configs(
+                base_path=base_cfg,
+                overlay_path=overlay_cfg,
+                output_path=base_cfg,
+            )
+        else:
+            logger.warning(
+                "[Feature][In-Place] skip config merge due to missing config file(s): "
+                f"base={base_cfg}, overlay={overlay_cfg}"
+            )
 
     if "analyzing" in stages:
         logger.info("------- [Feature] Analyzing -------")
