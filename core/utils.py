@@ -8,6 +8,20 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _sanitize_path_like_name(name: str) -> str:
+    """Normalize path-like task/file names without importing data_loader."""
+    if not isinstance(name, str):
+        return ""
+    cleaned = name.strip().strip("'\"")
+    cleaned = re.sub(r"^\s*(?:[-*]\s+|\d+\s*[.)]\s+)", "", cleaned)
+    m = re.match(r"^([A-Za-z0-9_./\\-]+\.[A-Za-z0-9._-]+)\b", cleaned)
+    if m:
+        cleaned = m.group(1)
+    cleaned = cleaned.replace("\\", "/")
+    cleaned = re.sub(r"/{2,}", "/", cleaned).strip().lstrip("./")
+    return cleaned
+
+
 def extract_planning(trajectories_json_file_path):
     with open(trajectories_json_file_path) as f:
         traj = json.load(f)
@@ -94,6 +108,19 @@ def parse_structured_json(text: str) -> dict:
         return content_to_json(payload)
 
 
+def try_parse_structured_json(text: str) -> tuple[dict, bool]:
+    """Parse structured JSON and report whether parsing succeeded."""
+    payload = extract_content_block(text)
+    try:
+        parsed = json.loads(payload)
+        return parsed if isinstance(parsed, dict) else {}, True
+    except Exception:
+        parsed = content_to_json(payload)
+        if isinstance(parsed, dict) and parsed:
+            return parsed, True
+    return {}, False
+
+
 def validate_required_keys(data: dict, required_keys: list) -> bool:
     if not isinstance(data, dict):
         return False
@@ -107,8 +134,21 @@ def contains_forbidden_placeholders(text: str) -> bool:
     if not isinstance(text, str):
         return False
     low = text.lower()
-    markers = ["notimplementederror", "# todo", "todo:", "placeholder", "stub implementation"]
-    return any(m in low for m in markers)
+    direct_markers = [
+        "notimplementederror",
+        "todo:",
+        "stub implementation",
+        "implementation omitted",
+        "replace this stub",
+    ]
+    if any(marker in low for marker in direct_markers):
+        return True
+    todo_line_markers = (
+        r"^\s*#\s*todo\b",
+        r"^\s*pass\s+#\s*todo\b",
+        r"^\s*raise\s+notimplementederror\b",
+    )
+    return any(re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE) for pattern in todo_line_markers)
 
 
 def extract_code_from_content(content):
@@ -460,12 +500,24 @@ def parse_feature_design(design_text: str):
     design_json = content_to_json(design_text)
     if not design_json:
         logger.warning("Failed to parse feature design output. Using empty defaults.")
-    injection_points = design_json.get("Injection points", [])
+    injection_points = (
+        design_json.get("Injection points")
+        or design_json.get("Files_to_Modify_at_Injection_Point")
+        or []
+    )
     injection_points = [p for p in injection_points if isinstance(p, dict) and "file" in p]
-    unchanged_files = design_json.get("Files unchanged", [])
+    unchanged_files = (
+        design_json.get("Files unchanged")
+        or design_json.get("Files_unchanged")
+        or []
+    )
     if not isinstance(unchanged_files, list):
         unchanged_files = []
-    new_files = design_json.get("New files needed", [])
+    new_files = (
+        design_json.get("New files needed")
+        or design_json.get("New_Files_to_Create")
+        or []
+    )
     if not isinstance(new_files, list):
         new_files = []
     return injection_points, unchanged_files, new_files
@@ -474,12 +526,26 @@ def parse_feature_design(design_text: str):
 def get_injection_info_for_file(injection_points: list, file_name: str) -> str:
     """Extract injection info string for a specific file from the injection points list."""
     infos = []
+    target_name = _sanitize_path_like_name(file_name)
     for point in injection_points:
-        if point.get("file", "") == file_name:
-            action = point.get("action", "modify")
-            location = point.get("location", "")
+        point_file = _sanitize_path_like_name(point.get("file", ""))
+        if point_file == target_name:
+            action = point.get("action", "modify_at_injection_point")
+            location = point.get("location", "") or point.get("injection_marker_target", "")
             description = point.get("description", "")
-            infos.append(f"- Action: {action}, Location: {location}, Description: {description}")
+            dependencies = point.get("dependencies_to_import", [])
+            if isinstance(dependencies, list):
+                dependencies = ", ".join(str(dep) for dep in dependencies if dep)
+            else:
+                dependencies = str(dependencies).strip()
+            parts = [f"- Action: {action}"]
+            if location:
+                parts.append(f"Location: {location}")
+            if description:
+                parts.append(f"Description: {description}")
+            if dependencies:
+                parts.append(f"Dependencies: {dependencies}")
+            infos.append(", ".join(parts))
     if infos:
         return "\n".join(infos)
     return f"No specific injection info found for {file_name}. Apply modifications based on the overall plan."

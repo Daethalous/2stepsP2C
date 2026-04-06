@@ -2,6 +2,8 @@ Your goal is to create a concise, usable, and complete software system design fo
              
 Based on the plan for reproducing the paper's main method, please design a concise, usable, and complete software system. 
 Keep the architecture simple and make effective use of open-source libraries.
+Python file names must use descriptive snake_case names. Never propose numbered file names or task-order shadow modules such as `1_utils.py`, `2_model.py`, or any basename starting with digits.
+Return strict JSON only. Every value must stay inside valid JSON strings, arrays, or objects. Do not emit free-form prose outside the JSON object. Do not leave trailing commas, broken quotes, or half-closed lists.
 
 -----
 
@@ -31,6 +33,8 @@ Keep the architecture simple and make effective use of open-source libraries.
 
 ## Constraint
 Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+- Do not use numbered Python filenames or numbered imports.
+- The payload inside `[CONTENT]...[/CONTENT]` must be valid JSON parseable by `json.loads`.
 
 ## Action
 Follow the instructions for the nodes, generate the output, and ensure it follows the format example.

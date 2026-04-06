@@ -8,6 +8,6 @@ The provided paper is the FULL, UNFILTERED text. You MUST ACTIVELY IGNORE the me
 
 1. Align with the Experimental Setup: Your analysis must strictly follow the datasets, preprocessing steps, and evaluation metrics described in the paper. DO NOT attempt to analyze or implement the paper's novel algorithm.
 2. Be Clear and Structured: Present your analysis in a logical, well-organized, and actionable format that is easy to follow and implement.
-3. Follow Design & Tensor Contracts: YOU MUST FOLLOW "Data structures and interfaces". Do not change any design. You MUST explicitly enforce the exact Tensor shapes (e.g., [B, L, N]) and the [INJECTION_POINT] placeholder marker as defined in the plan and design.
+3. Follow Design & Tensor Contracts: YOU MUST FOLLOW "Data structures and interfaces". Do not change any design. You MUST explicitly enforce the exact Tensor shapes (e.g., [B, L, N]) and the stable external model interface defined in the plan and design.
 4. REFER TO CONFIGURATION (ABSOLUTE PRIORITY): Always reference settings from the `config.yaml` file. If there is a conflict between the paper and `config.yaml`, the `config.yaml` ALWAYS takes precedence. Do not invent or assume any values.
-5. Baseline Focus: The model implementation must remain a simple standard approach (placeholder). Focus your analysis entirely on ensuring correct data flow, training loops, and the evaluation pipeline.
+5. Baseline Focus: The model implementation must remain a simple standard vanilla baseline. Focus your analysis entirely on ensuring correct data flow, training loops, and the evaluation pipeline.

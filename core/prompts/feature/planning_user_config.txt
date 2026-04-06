@@ -1,12 +1,11 @@
 You write elegant, modular, and maintainable code. Adhere to Google-style guidelines.
 
-Based on the paper, plan, design specified previously, follow the "Format Example" and generate the code. 
-Extract the training details from the above paper (e.g., learning rate, batch size, epochs, etc.), follow the "Format example" and generate the code. 
-DO NOT FABRICATE DETAILS — only use what the paper provides.
-
-If the paper's algorithm introduces new hyperparameters not present in the baseline config, please add them.
+Based on the paper, plan, and design specified previously, generate or modify the configuration file.
+Extract the training details from the paper (e.g., learning rate, batch size, epochs, optimizer, scheduler, and model-specific options) and generate the config accordingly.
+DO NOT FABRICATE DETAILS. Only use what the paper provides, and preserve the baseline config structure where possible.
 
 You must write `config.yaml`.
+If `config.yaml` already exists in the baseline code, modify it to align with the paper's experiments. If not, create a new one.
 
 ATTENTION: Use '##' to SPLIT SECTIONS, not '#'. Your output format must follow the example below exactly.
 

@@ -1,51 +1,77 @@
-Your goal is to generate a strict in-place incremental refactor design from baseline code.
+Your goal is to create a concise, usable, and complete software system design for reproducing the paper's method based on an existing baseline implementation.
+
+We have a baseline implementation. Its structured repository map is:
+$repo_manifest_summary
+
+Resolved entrypoint candidates and execution hints:
+$entrypoint_summary
+
+Based on the overall plan for reproducing the paper and the provided baseline code, please design modifications to the software system.
+- If a file exists in the baseline repo and needs modification to align with the paper, list it in the "File list".
+- If a file is new, list it in the "File list".
+- If a file exists and does NOT need modification, mention it in the implementation approach and include it in the diagrams when relevant, but do not clutter the file list with unnecessary entries.
+- Prefer in-place replacement of existing baseline entrypoints, classes, and methods over parallel reimplementation.
+- You MUST identify the real baseline entrypoints and execution chain that currently reach the core training/evaluation/inference logic.
+- You MUST identify the existing baseline symbols that currently host the algorithmic semantics and explain how the paper's core method will replace or refactor them.
+- If you create a new file, justify why in-place replacement is insufficient and name which existing files must import or integrate it.
+- You MUST identify any registry/factory/config/main/train/eval touchpoints that need synchronized updates so the modified path remains reachable.
+- Python file names must use descriptive snake_case names only. Never introduce numbered names such as `1_utils.py`, `2_model.py`, or any file whose basename starts with digits.
 
 -----
 
-## Baseline (Live Repo) Code
-$baseline_repo_code
-
------
-
-## Required Output Format
-Output MUST be wrapped in [CONTENT][/CONTENT] and contain exactly one valid JSON object.
-No extra text is allowed outside [CONTENT][/CONTENT].
-
+## Format Example
 [CONTENT]
 {
-  "Baseline architecture summary": "string",
-  "Paper algorithm summary": "string",
-  "Injection points": [
-    {
-      "file": "string",
-      "location": "string",
-      "action": "replace|modify|add",
-      "description": "string"
-    }
-  ],
-  "New files needed": ["string"],
-  "Files unchanged": ["string"],
-  "Coverage check": {
-    "covered_files_count": 0,
-    "uncovered_files": []
-  },
-  "Anything UNCLEAR": "string"
+    "Implementation approach": "We will base our implementation on the baseline code. We will modify `model.py` to include the paper's main mechanism, update `trainer.py` to support the required loss or training behavior, and reuse `dataset_loader.py` as is.",
+    "File list": [
+        "model.py",
+        "trainer.py",
+        "new_module.py"
+    ],
+    "Primary Entry Points": [
+        "main.py::main",
+        "trainer.py::train"
+    ],
+    "Execution Chain": [
+        "main.py::main -> trainer.py::train -> model.py::forward",
+        "evaluation.py::run_eval -> model.py::forward"
+    ],
+    "Core Replacement Targets": [
+        ["model.py", "BaselineModel.forward", "in_place_replace", "Replace the baseline forward-path logic with the paper's core mechanism while preserving the public symbol."],
+        ["trainer.py", "Trainer.train", "in_place_refactor", "Update the training objective and orchestration without creating a parallel trainer entrypoint."]
+    ],
+    "New Files Justification": [
+        ["new_module.py", "Needed because the paper introduces a reusable helper that does not fit cleanly inside existing files.", "Imported by model.py and trainer.py"]
+    ],
+    "Registry/Factory Touchpoints": [
+        "main.py constructs Trainer and Model from config",
+        "registry.py selects detector implementation"
+    ],
+    "File Naming Review": "PASS: no numbered Python filenames, no numbered imports, no task-order shadow modules.",
+    "Data structures and interfaces": "\nclassDiagram\n    class Main {\n        +__init__()\n        +run_experiment()\n    }\n    class DatasetLoader {\n        +__init__(config: dict)\n        +load_data() -> Any\n    }\n    class Model {\n        +__init__(params: dict)\n        +forward(x: Tensor) -> Tensor\n        +new_method()\n    }\n    class Trainer {\n        +__init__(model: Model, data: Any)\n        +train() -> None\n    }\n    Main --> DatasetLoader\n    Main --> Trainer\n    Trainer --> Model\n",
+    "Program call flow": "\nsequenceDiagram\n    participant M as Main\n    participant DL as DatasetLoader\n    participant MD as Model\n    participant TR as Trainer\n    M->>DL: load_data()\n    DL-->>M: return dataset\n    M->>MD: initialize model()\n    M->>TR: train(model, dataset)\n    TR->>MD: forward(x)\n    MD-->>TR: predictions\n    TR-->>M: training complete\n",
+    "Anything UNCLEAR": "Need clarification on..."
 }
 [/CONTENT]
 
-## Hard Constraints
-- This is an in-place refactor plan, not a full rewrite plan.
-- Prefer minimal edits to existing files; add new files only when truly needed.
-- Every baseline file must appear in exactly one set:
-  - either in `Injection points.file`
-  - or in `Files unchanged`
-- `Injection points.file` and `Files unchanged` MUST NOT overlap.
-- For `Files unchanged`, only include files requiring truly zero changes.
-- If baseline contains `NotImplementedError`/`TODO`/`placeholder` related to paper contributions,
-  corresponding file MUST appear in `Injection points`.
-- Do not output markdown explanations or narrative text outside JSON.
+## Nodes: "<node>: <type>  # <instruction>"
+- Implementation approach: <class 'str'>  # Summarize the chosen solution strategy, explicitly mentioning which baseline files will be reused, modified, or created.
+- File list: typing.List[str]  # Only need relative paths. List the files that need to be created or modified to reproduce the paper.
+- Primary Entry Points: typing.List[str]  # List the concrete baseline entry functions/classes that must still reach the final paper logic.
+- Execution Chain: typing.List[str]  # Give 1-5 concrete call chains using `file.py::symbol -> file.py::symbol`.
+- Core Replacement Targets: typing.List[typing.List[str]]  # Each item must be [target_file, target_symbol, replacement_mode, rationale]. replacement_mode should be one of: in_place_replace, in_place_refactor, helper_extraction, new_file_required.
+- New Files Justification: typing.List[typing.List[str]]  # For every newly created file output [new_file, why_in_place_replacement_is_not_enough, imported_by_or_integrated_into]. Use an empty list if no new files are required.
+- Registry/Factory Touchpoints: typing.List[str]  # List all config/factory/registry/main/train/eval hooks that must keep pointing to the modified implementation path.
+- File Naming Review: <class 'str'>  # Explicitly confirm that no numbered Python filenames/imports or task-order shadow modules are introduced.
+- Data structures and interfaces: typing.Optional[str]  # Use mermaid classDiagram code syntax. Include modified/new classes and critical reused classes where relevant.
+- Program call flow: typing.Optional[str] # Use sequenceDiagram code syntax. Show the full implementation flow, including reused baseline components where relevant.
+- Anything UNCLEAR: <class 'str'>  # Mention ambiguities.
 
-## Self-check Before Output
-- Is JSON valid and wrapped by [CONTENT][/CONTENT]?
-- Are all required keys present?
-- Are there zero uncovered baseline files?
+## Constraint
+Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+- Do not solve the task by adding a parallel implementation that bypasses the baseline main execution path.
+- Preserve existing public symbols where practical so later stages can update callsites consistently.
+- Anchor the design on the provided entrypoint summary instead of inventing a new top-level execution path.
+
+## Action
+Follow the instructions for the nodes, generate the output, and ensure it follows the format example.

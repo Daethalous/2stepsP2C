@@ -28,7 +28,8 @@ def run_feature_pipeline(paper_name: str,
                          paper_format: str = "JSON",
                          pdf_json_path: str = None,
                          pdf_latex_path: str = None,
-                         stages: list = None) -> None:
+                         stages: list = None,
+                         api_predefine_contract_path: str = None) -> None:
     """Step 2: Inject paper's novel algorithm into baseline code."""
 
     if stages is None:
@@ -66,6 +67,7 @@ def run_feature_pipeline(paper_name: str,
             pdf_latex_path=pdf_latex_path,
             prompt_set=PROMPT_SET,
             baseline_repo_dir=baseline_repo_dir,
+            api_predefine_contract_path=api_predefine_contract_path,
         )
 
     if "extract" in stages:
@@ -97,6 +99,7 @@ def run_feature_pipeline(paper_name: str,
             prompt_set=PROMPT_SET,
             baseline_repo_dir=baseline_repo_dir,
             live_repo_dir=output_repo_dir,
+            api_predefine_contract_path=api_predefine_contract_path,
         )
 
     if "coding" in stages:
@@ -112,6 +115,7 @@ def run_feature_pipeline(paper_name: str,
             prompt_set=PROMPT_SET,
             baseline_repo_dir=baseline_repo_dir,
             live_repo_dir=output_repo_dir,
+            api_predefine_contract_path=api_predefine_contract_path,
         )
 
     logger.info("------- [Feature] Done -------")
@@ -131,6 +135,10 @@ if __name__ == "__main__":
     parser.add_argument('--output_repo_dir', type=str, required=True)
     parser.add_argument('--baseline_repo_dir', type=str, required=True,
                         help="Path to baseline repo from Step 1")
+    parser.add_argument(
+        '--api_predefine_contract', type=str, default="",
+        help="Path to api_predefine_contract.pyi (optional)",
+    )
     parser.add_argument('--stages', type=str, nargs='+', default=DEFAULT_STAGES)
     args = parser.parse_args()
 
@@ -145,6 +153,7 @@ if __name__ == "__main__":
             pdf_json_path=args.pdf_json_path,
             pdf_latex_path=args.pdf_latex_path,
             stages=args.stages,
+            api_predefine_contract_path=args.api_predefine_contract or None,
         )
     except PipelineError as e:
         logger.error(f"[ERROR] {e}")

@@ -5,6 +5,14 @@ You outline a clear PRD/technical design for reproducing the paper's method and 
 
 Now, let's break down tasks according to PRD/technical design, generate a task list, and analyze task dependencies.
 The Logic Analysis should not only consider the dependencies between files but also provide detailed descriptions to assist in writing the code needed to reproduce the paper.
+All task-list filenames must remain descriptive and stable. Never introduce numbered Python files or task-order shadow modules such as `1_preprocess.py` or `3_model.py`.
+Return strict JSON only. Keep all descriptive text inside valid JSON string values. Do not output trailing commas, dangling bullets, unmatched quotes, or malformed arrays before `Task list` / `Logic Analysis`.
+Every `Task list` item must be a pure relative file path string only, such as `main.py`, `detectors/logprob_detector.py`, `notes/ablation.md`, or `reports/error_cases.txt`.
+Do NOT use directory-only entries, absolute paths, Windows drive paths, `..`, glob patterns, or any explanatory suffix such as `: implement ...`, `, update ...`, or prose after the path.
+If a description is needed, put it in `Logic Analysis`, not in `Task list`.
+Every `Logic Analysis` item must be exactly `[relative_file_path, description]`.
+The first element of each `Logic Analysis` item must be a single pure relative file path only. Do NOT merge multiple files into one key such as `run.sh and requirements.txt`.
+If two files need analysis, split them into two separate items, for example `["run.sh", "..."]` and `["requirements.txt", "..."]`.
 
 -----
 
@@ -61,14 +69,18 @@ The Logic Analysis should not only consider the dependencies between files but a
 ## Nodes: "<node>: <type>  # <instruction>"
 - Required packages: typing.Optional[typing.List[str]]  # Provide required third-party packages in requirements.txt format.(e.g., 'numpy==1.21.0').
 - Required Other language third-party packages: typing.List[str]  # List down packages required for non-Python languages. If none, specify "No third-party dependencies required".
-- Logic Analysis: typing.List[typing.List[str]]  # Provide a list of files with the classes/methods/functions to be implemented, including dependency analysis and imports. Include as much detailed description as possible.
-- Task list: typing.List[str]  # Break down the tasks into a list of filenames, prioritized based on dependency order. The task list must include the previously generated file list.
+- Logic Analysis: typing.List[typing.List[str]]  # Provide a list of `[relative_file_path, description]` items. The first element must be a single file path only, and the second element should contain the detailed dependency analysis and implementation notes.
+- Task list: typing.List[str]  # Break down the tasks into a list of relative file paths, prioritized based on dependency order. Each item must be a pure file path only, without descriptions. The task list must include the previously generated file list.
 - Full API spec: <class 'str'>  # Describe all APIs using OpenAPI 3.0 spec that may be used by both frontend and backend. If front-end and back-end communication is not required, leave it blank.
 - Shared Knowledge: <class 'str'>  # Detail any shared knowledge, like common utility functions or configuration variables.
 - Anything UNCLEAR: <class 'str'>  # Mention any unresolved questions or clarifications needed from the paper or project scope.
 
 ## Constraint
 Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+- Do not propose numbered Python filenames or numbered imports.
+- The payload inside `[CONTENT]...[/CONTENT]` must be valid JSON parseable by `json.loads`.
+- `Task list` items must be real relative file paths only, not task titles or directory names. Do not restrict yourself to only Python/YAML/JSON files when the task genuinely targets another file type.
+- `Logic Analysis` file keys must also be real relative file paths only, one file per item, not merged labels or descriptions.
 
 ## Action
 Follow the node instructions above, generate your output accordingly, and ensure it follows the given format example.

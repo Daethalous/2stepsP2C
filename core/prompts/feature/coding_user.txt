@@ -1,7 +1,19 @@
-# Context
+## Target File
+`$todo_file_name`
+
+## Global API Stub
+$global_api_contract_stub
+
+## Integration Hint (Recently created components in other files)
+$integration_hint
+
+## Resolved Entrypoints
+$repo_primary_entrypoints
+
+-----
+
 ## Paper
 $paper_content
-The paper content above is pre-filtered for this stage; prioritize it over missing sections.
 
 -----
 
@@ -24,60 +36,88 @@ $task
 ```yaml
 $config_yaml
 ```
------
-
-## Baseline Code for This File
-```python
-$baseline_file_code
-```
------
-
-## Unchanged File References (for new-file integration)
-$existing_files_summary
 
 -----
 
-## Code Files (already modified in this session)
+## Codes of dependencies (Newly implemented/modified in this session)
 $code_files
 
 -----
 
-# Format example
-## Code: $todo_file_name
+## Current Target File Source
 ```python
-## $todo_file_name
-...
+$focus_file_code
 ```
 
 -----
 
-# Instruction
-Based on the paper, plan, design, task, configuration file, and the baseline code shown above, follow "Format example", write the COMPLETE modified file.
+## Required Context Bundle
+$required_context_code
 
-We have $done_file_lst.
-Next, you must write only the "$todo_file_name".
-1. Only One file: do your best to implement THIS ONLY ONE FILE.
-2. COMPLETE CODE: Output the COMPLETE file content. You are modifying the file
-   IN-PLACE in an existing repository. Preserve all existing infrastructure code
-   and only change what the modification analysis specifies. Your output will
-   REPLACE the current file content entirely.
-3. Set default value: If there is any setting, ALWAYS SET A DEFAULT VALUE, ALWAYS USE STRONG TYPE AND EXPLICIT VARIABLE. AVOID circular import.
-4. Follow design: YOU MUST FOLLOW the injection plan. Maintain the same interfaces so unchanged files continue to work.
-5. CAREFULLY CHECK THAT YOU DONT MISS ANY NECESSARY CLASS/FUNCTION IN THIS FILE.
-6. Before using a external variable/module, make sure you import it first.
-7. Write out EVERY CODE DETAIL, DON'T LEAVE TODO.
-8. REFER TO CONFIGURATION: you must use configuration from "config.yaml". DO NOT FABRICATE any configuration values.
-9. NO PLACEHOLDERS: Do NOT leave any `raise NotImplementedError(...)`, `# TODO`,
-   or placeholder comments for the paper's algorithms. Implement everything fully.
-10. CONTRACT CONSISTENCY: keep metadata schema keys, checkpoint key names, and
-    externally consumed function signatures compatible with unchanged files.
-11. OUTPUT FORMAT: output only the final complete code for `$todo_file_name`.
-    Do NOT output explanations, markdown prose, or extra files.
-12. ENTRY INTEGRATION: if this is an entry/factory/registry file, make sure
-    newly introduced modules/classes/functions are wired into runtime flow.
+-----
 
-$integration_hint
+## Upstream Callers
+$upstream_callers_code
 
+-----
+
+## Downstream Callees
+$downstream_callees_code
+
+-----
+
+## Shared Interfaces
+$shared_interfaces_code
+
+-----
+
+## Config And Registry Files
+$config_and_registry_code
+
+-----
+
+## Optional Related Files
+$optional_related_code
+
+-----
+
+## Structured Constraints
+- Target symbols:
+$target_symbols
+- Entrypoint chain:
+$entrypoint_chain
+- Synchronized edit targets:
+$synchronized_edit_targets
+- Interface constraints:
+$interface_constraints
+
+-----
+
+## File-specific logic analysis
 $detailed_logic_analysis
 
-## Code: $todo_file_name
+-----
+
+## Instruction
+Generate the FINAL, COMPLETE Python code for `$todo_file_name`.
+If the file already exists, refine it based on the plan, logic analysis, and current repository state.
+If the file is new, implement it from scratch in a way that integrates correctly with the rest of the repository.
+
+Requirements:
+- Output only this single file.
+- Preserve valid existing behavior when it is still consistent with the paper and the plan.
+- Integrate newly created components where required.
+- Use configuration from `config.yaml` instead of inventing values.
+- Write complete code with all imports and without TODO/placeholder logic.
+- Prefer in-place replacement of the baseline execution path over adding a bypass module.
+- Use the provided required-context bundle as the authoritative source of existing interfaces and callsites; do not invent missing APIs.
+- If `Integration Hint` or `File-specific logic analysis` lists callsite updates or public interface changes, implement this file so those changes remain consistent with the known callers and imports.
+- If the structured `Entrypoint chain` or `Resolved Entrypoints` shows that this file lies on the real execution path, preserve that reachability and update the real callsites instead of creating a parallel path.
+- Do not create or import numbered Python files or numbered modules.
+- If this target is a new file, it must match a justified new-file decision from the planning artifacts rather than a task-order shadow module.
+
+## Output Format
+Output ONLY the raw Python code enclosed in a markdown block. No explanations. No chatting.
+```python
+# WRITE YOUR COMPLETE FILE CODE HERE
+```

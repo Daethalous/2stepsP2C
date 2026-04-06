@@ -6,22 +6,45 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _sanitize_string_for_json_payload(text: str) -> str:
+    """Normalize potentially invalid unicode before HTTP JSON serialization."""
+    if not isinstance(text, str):
+        return text
+    # Replace unpaired surrogates and other invalid sequences.
+    sanitized = text.encode("utf-8", errors="replace").decode("utf-8")
+    # Drop NUL bytes that may break some JSON encoders/servers.
+    return sanitized.replace("\x00", "")
+
+
+def _sanitize_payload(obj):
+    if isinstance(obj, str):
+        return _sanitize_string_for_json_payload(obj)
+    if isinstance(obj, list):
+        return [_sanitize_payload(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _sanitize_payload(v) for k, v in obj.items()}
+    return obj
+
+
 def create_client() -> OpenAI:
     return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
 def chat_completion(client: OpenAI, gpt_version: str, messages: list, **kwargs):
+    safe_messages = _sanitize_payload(messages)
+    safe_kwargs = _sanitize_payload(kwargs)
     if "o3-mini" in gpt_version:
-        kwargs.setdefault("reasoning_effort", "high")
+        safe_kwargs.setdefault("reasoning_effort", "high")
     return client.chat.completions.create(
         model=gpt_version,
-        messages=messages,
-        **kwargs,
+        messages=safe_messages,
+        **safe_kwargs,
     )
 
 
 def chat_completion_raw(client: OpenAI, request_json: dict):
-    return client.chat.completions.create(**request_json)
+    safe_request_json = _sanitize_payload(request_json)
+    return client.chat.completions.create(**safe_request_json)
 
 
 _RETRYABLE_STATUS_CODES = (429, 500, 502, 503)

@@ -1,6 +1,5 @@
 ## Paper
 $paper_content
-The paper content above is pre-filtered for this stage; prioritize it over missing sections.
 
 -----
 
@@ -23,63 +22,86 @@ $task
 ```yaml
 $config_yaml
 ```
+
 -----
 
-## Baseline Code for This File
+## Baseline Repository Reference
+$repo_manifest_summary
+
+## Entrypoint Summary
+$entrypoint_summary
+
+-----
+
+## Target File
+File Name: `$todo_file_name`
+
+Task Focus: $draft_desc
+
+## Current File Snapshot
 ```python
-$baseline_file_code
+$focus_file_code
 ```
------
-
-## File Source Note
-`baseline_file_code` may come from:
-- live repo (preferred),
-- baseline repo fallback,
-- or `(new file — no baseline/live code)`.
-If it is a new file, design the file to integrate with unchanged repository interfaces.
 
 -----
 
-## Injection Info for This File
-$injection_info
+## Required Context Bundle
+$required_context_code
+
+-----
+
+## Upstream Callers
+$upstream_callers_code
+
+-----
+
+## Downstream Callees
+$downstream_callees_code
+
+-----
+
+## Shared Interfaces
+$shared_interfaces_code
+
+-----
+
+## Config And Registry Files
+$config_and_registry_code
+
+-----
+
+## Optional Related Files
+$optional_related_code
+
+-----
+
+## Structured Reachability Constraints
+- Target symbols:
+$target_symbols
+- Entrypoint chain:
+$entrypoint_chain
+- Synchronized edit targets:
+$synchronized_edit_targets
+- Interface constraints:
+$interface_constraints
 
 -----
 
 ## Instruction
-Based on the paper, the injection plan, and the baseline code shown above, conduct a detailed in-place modification analysis for this file.
-Describe exactly what code to add, remove, or change. You DON'T need to provide the actual code yet; focus on a thorough, clear analysis.
+Conduct a file-level logic analysis for `$todo_file_name` to assist the coding stage.
+Do NOT provide the final code yet; focus on a thorough, clear implementation analysis.
 
-$draft_desc
+Please cover:
+- what the file should do according to the paper and the planned design,
+- which parts of the current file can be reused,
+- which parts need modification or should be added,
+- required imports, dependencies, and interactions with other files,
+- how the target file is reached from the real baseline entrypoint chain,
+- which required context files must stay interface-compatible after the modification,
+- any important tensor/data-shape, API, or configuration considerations if relevant,
+- any ambiguities or risks the coder should be careful about.
 
------
+If the file is new, clearly describe the expected classes/functions and how they integrate with the rest of the codebase.
+If the file does not need modification, state that explicitly and explain why.
 
-## Modification Analysis: $todo_file_name
-
------
-
-## Required Output Format
-Output MUST be wrapped in [CONTENT][/CONTENT] and contain exactly one valid JSON object.
-No extra text outside [CONTENT][/CONTENT].
-
-[CONTENT]
-{
-  "file": "$todo_file_name",
-  "modification_steps": ["string"],
-  "interface_contract_checklist": {
-    "metadata_schema": "compatible|needs_change",
-    "checkpoint_keys": "compatible|needs_change",
-    "function_signatures": "compatible|needs_change",
-    "caller_impacts": ["string"],
-    "callee_impacts": ["string"]
-  },
-  "config_keys_used": ["string"],
-  "test_focus": ["string"],
-  "blocked_items": [
-    {
-      "item": "string",
-      "reason": "string",
-      "required_follow_up": "string"
-    }
-  ]
-}
-[/CONTENT]
+## Logic Analysis: $todo_file_name
