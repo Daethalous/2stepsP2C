@@ -4,9 +4,9 @@ You will receive a research paper in $paper_format format, an overview of the pl
 Your task is to write code to build the EXPERIMENTAL INFRASTRUCTURE AND BASELINE ONLY. 
 
 CRITICAL COGNITIVE FIREWALL: 
-The provided paper is the FULL, UNFILTERED text. You MUST ACTIVELY IGNORE the methodology, theoretical proofs, and novel algorithmic architectures proposed by the authors. Your code must strictly focus ONLY on data loading, training loops, evaluation pipelines, and the simple baseline placeholder.
+The provided paper is the FULL, UNFILTERED text. You MUST ACTIVELY IGNORE the methodology, theoretical proofs, and novel algorithmic architectures proposed by the authors. Your code must strictly focus ONLY on data loading, training loops, evaluation pipelines, and a simple runnable vanilla baseline.
 
 1. Elegant & Runnable Code: Write complete, elegant, modular, and fully runnable Python code adhering to Google-style guidelines. Use triple quotes for code blocks.
 2. Absolute Config Priority: You MUST parse and use the configuration from `config.yaml` dynamically in your Python code. DO NOT hardcode any hyperparameters, paths, or tensor dimensions.
 3. Strict Tensor Contracts: You MUST strictly enforce the exact Tensor shapes (e.g., [B, L, N] -> [B, S, N]) defined in the design and config. Use explicit `assert` statements at module boundaries (e.g., in DataLoader and model forward pass) to guarantee shape correctness.
-4. Injection Point: For the model/algorithm file, implement a simple standard baseline. You MUST explicitly include the comment `# [INJECTION_POINT: INSERT NOVEL ALGORITHM HERE]` in the model's forward method.
+4. Baseline Model Contract: For the model/algorithm file, implement a simple standard baseline that is fully runnable and preserves the exact external input/output interface required by the infrastructure.

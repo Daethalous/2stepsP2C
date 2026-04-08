@@ -1,7 +1,30 @@
-Your goal is to break down the algorithm injection tasks, generate a task list of files to modify or create, and analyze dependencies.
+Your goal is break down tasks according to PRD/technical design, generate a task list, and analyze task dependencies.
+You will break down tasks and analyze dependencies for adapting the baseline repository to the paper.
 
-Based on the injection plan, break down the modifications into specific tasks for each file that needs to be changed or created.
-The Logic Analysis should describe the specific modifications needed for each file to inject the paper's algorithm.
+The overall plan is:
+$overview
+
+The architecture design is:
+$design
+
+The baseline repository map is:
+$repo_manifest_summary
+
+Resolved entrypoint candidates and execution hints are:
+$entrypoint_summary
+
+Now, let's break down tasks according to the design, generate a task list, and analyze task dependencies.
+The Logic Analysis should not only consider dependencies between files but also provide detailed descriptions to assist in writing the code needed to reproduce the paper.
+For every modified file, you must explicitly analyze the replaced symbols, upstream callers, downstream dependencies, and synchronized edits required in imports, constructors, return-value handling, registries, and entrypoints.
+For every modified file, you must also output a structured closure item that names the target symbols, required context files, entrypoint reachability, and synchronized edits.
+You may say "No callsite changes needed" only when you have explicitly checked the public interface and confirmed that all imports, callsites, and return contracts remain unchanged.
+Never solve the task by creating numbered Python files or shadow modules that bypass the main execution path.
+Every `Task list` item must be a pure relative file path string only, such as `main.py`, `detectors/logprob_detector.py`, `notes/ablation.md`, or `reports/error_cases.txt`.
+Do NOT use directory-only entries, absolute paths, Windows drive paths, `..`, glob patterns, or any explanatory suffix such as `: implement ...`, `, update ...`, or prose after the path.
+If a description is needed, put it in `Logic Analysis`, not in `Task list`.
+Every `Logic Analysis` item must be exactly `[relative_file_path, description]`.
+The first element of each `Logic Analysis` item must be a single pure relative file path only. Do NOT merge multiple files into one key such as `run.sh and requirements.txt`.
+If two files need analysis, split them into two separate items, for example `["run.sh", "..."]` and `["requirements.txt", "..."]`.
 
 -----
 
@@ -10,48 +33,84 @@ The Logic Analysis should describe the specific modifications needed for each fi
 {
     "Required packages": [
         "numpy==1.21.0",
-        "torch==1.9.0"  
+        "torch==1.9.0"
     ],
     "Required Other language third-party packages": [
         "No third-party dependencies required"
     ],
     "Logic Analysis": [
         [
-            "model.py",
-            "MODIFY: Replace placeholder Model class with paper's novel architecture. Specifically: ..."
-        ],
-        [
-            "losses.py",
-            "NEW: Implement paper's custom loss function. Specifically: ..."
+            "data_preprocessing.py",
+            "Symbols: DataPreprocessing.__init__, DataPreprocessing.transform. Upstream callers: main.py load path. Downstream dependencies: trainer.py expects normalized tensors. Synchronized edits: update config parsing and dataset construction imports."
         ],
         [
             "trainer.py",
-            "MODIFY: Update training loop to use new loss function. Specifically: ..."
+            "Symbols: Trainer.train, Trainer.compute_loss. Upstream callers: main.py. Downstream dependencies: evaluator.py consumes prediction schema. Synchronized edits: update constructor arguments, return-value handling, and any registry or factory wiring."
+        ],
+        [
+            "existing_file.py",
+            "No modification needed."
         ]
     ],
     "Task list": [
-        "losses.py",
-        "model.py",  
-        "trainer.py"
+        "dataset_loader.py",
+        "model.py",
+        "trainer.py",
+        "evaluation.py",
+        "main.py"
     ],
-    "Full API spec": "",
-    "Shared Knowledge": "The new model maintains the same input/output interface as the baseline placeholder.",
-    "Anything UNCLEAR": "Clarification needed on ..."
+    "Modification Closure": [
+        {
+            "path": "model.py",
+            "target_symbols": ["BaselineModel.forward"],
+            "upstream_callers": ["trainer.py", "evaluation.py"],
+            "downstream_callees": ["layers.py"],
+            "required_context_files": ["trainer.py", "evaluation.py", "layers.py", "config.yaml"],
+            "entrypoints": ["main.py::main"],
+            "synchronized_edits": ["trainer.py", "evaluation.py", "main.py"]
+        }
+    ],
+    "Callsite Update List": [
+        ["model.py", "Update trainer.py forward calls, evaluator.py inference path, and main.py model construction imports."],
+        ["trainer.py", "Update main.py trainer initialization and any evaluator entrypoint using the old return schema."]
+    ],
+    "Public Interface Changes": [
+        ["BaselineModel.forward", "Adds mask and auxiliary state outputs", "trainer.py, evaluator.py"],
+        ["Trainer.train", "Returns metrics dict instead of scalar", "main.py"]
+    ],
+    "Forbidden File Names": [
+        "1_utils.py",
+        "2_model.py",
+        "<number>_*.py"
+    ],
+    "Full API spec": "openapi: 3.0.0 ...",
+    "Shared Knowledge": "Both data_preprocessing.py and trainer.py share ........",
+    "Anything UNCLEAR": "Clarification needed on recommended hardware configuration for large-scale experiments."
 }
-
 [/CONTENT]
 
 ## Nodes: "<node>: <type>  # <instruction>"
-- Required packages: typing.Optional[typing.List[str]]  # List any NEW packages required by the paper's algorithm (beyond what the baseline already uses).
-- Required Other language third-party packages: typing.List[str]  # List down packages required for non-Python languages. If none, specify "No third-party dependencies required".
-- Logic Analysis: typing.List[typing.List[str]]  # For each file to modify or create, describe the specific changes. Prefix with MODIFY: or NEW: to indicate the action type.
-- Task list: typing.List[str]  # List ONLY the files that need to be modified or created, in dependency order. Do NOT include unchanged files.
+- Required packages: typing.Optional[typing.List[str]]  # Provide required third-party packages in requirements.txt format.
+- Required Other language third-party packages: typing.List[str]  # List packages required for non-Python languages. If none, specify "No third-party dependencies required".
+- Logic Analysis: typing.List[typing.List[str]]  # Provide a list of `[relative_file_path, description]` items. The first element must be a single file path only. For modified files, explicitly include replaced symbols, upstream callers, downstream dependencies, and synchronized edits. If a file does not need modification, mark it as "No modification needed" or "Omitted".
+- Task list: typing.List[str]  # Break down the tasks into a list of relative file paths, prioritized based on dependency order. Each item must be a pure file path only, without descriptions. The task list must include the files that need modification or creation.
+- Modification Closure: typing.List[dict]  # One dict per task file. Each item must include `path`, `target_symbols`, `upstream_callers`, `downstream_callees`, `required_context_files`, `entrypoints`, and `synchronized_edits`.
+- Callsite Update List: typing.List[typing.List[str]]  # Each item must be [owning_file, required_callsite_and_import_updates]. Include every file whose public interface or execution path changes. Use an empty list only if all modified files truly preserve every callsite contract.
+- Public Interface Changes: typing.List[typing.List[str]]  # Each item must be [symbol, change_summary, affected_files]. Include constructor changes, return-schema changes, registry/factory changes, and entrypoint changes.
+- Forbidden File Names: typing.List[str]  # List numbered or shadow-module names/patterns that must not be created or imported.
 - Full API spec: <class 'str'>  # Describe all APIs using OpenAPI 3.0 spec that may be used by both frontend and backend. If front-end and back-end communication is not required, leave it blank.
-- Shared Knowledge: <class 'str'>  # Detail any shared knowledge, like interface contracts between modified and unchanged files.
-- Anything UNCLEAR: <class 'str'>  # Mention any unresolved questions or clarifications needed.
+- Shared Knowledge: <class 'str'>  # Detail any shared knowledge, like common utility functions or configuration variables.
+- Anything UNCLEAR: <class 'str'>  # Mention any unresolved questions or clarifications needed from the paper or project scope.
 
 ## Constraint
 Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+- Every modified public symbol must be traced to its callers.
+- Prefer updating the existing main/train/eval/factory/registry path over introducing bypass code.
+- Do not propose numbered filenames or numbered imports.
+- `Task list` items must be real relative file paths only, not task titles or directory names. Do not restrict yourself to only Python/YAML/JSON files when the task genuinely targets another file type.
+- `Logic Analysis` file keys must also be real relative file paths only, one file per item, not merged labels or descriptions.
+- `Modification Closure.path` and every entry in `required_context_files` / `synchronized_edits` must also be real relative file paths.
+- `Modification Closure.entrypoints` must name real baseline entry functions or files that preserve the main execution path.
 
 ## Action
 Follow the node instructions above, generate your output accordingly, and ensure it follows the given format example.

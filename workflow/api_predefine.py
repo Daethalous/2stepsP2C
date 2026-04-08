@@ -1,11 +1,12 @@
 import argparse
 import ast
 import copy
+import hashlib
 import json
 import os
 import re
 
-from core.data_loader import load_paper_content, load_pipeline_context
+from core.data_loader import load_paper_content, load_pipeline_context, sanitize_todo_file_name
 from core.llm_engine import chat_completion_with_retry, create_client
 from core.logger import get_logger
 from core.prompts.templates import render_prompt
@@ -23,6 +24,32 @@ logger = get_logger(__name__)
 
 def _prompt_path(prompt_set, name):
     return f"{prompt_set}/{name}" if prompt_set else name
+
+
+def _make_safe_artifact_stem(path_text: str) -> str:
+    normalized = sanitize_todo_file_name(path_text) or str(path_text or "").strip()
+    normalized = normalized.replace("\\", "/")
+    readable = normalized.replace("/", "__")
+    readable = re.sub(r"[^A-Za-z0-9._-]+", "_", readable).strip("._")
+    readable = re.sub(r"_+", "_", readable)
+    if not readable:
+        readable = "artifact"
+    suffix = hashlib.sha1(normalized.encode("utf-8", errors="ignore")).hexdigest()[:10]
+    return f"{readable}_{suffix}"
+
+
+def _find_analysis_response_path(output_dir: str, todo_file_name: str) -> tuple[str | None, list[str]]:
+    normalized = sanitize_todo_file_name(todo_file_name) or todo_file_name
+    safe_name = _make_safe_artifact_stem(normalized)
+    legacy_name = normalized.replace("/", "_")
+    candidate_paths = [
+        os.path.join(output_dir, f"{safe_name}_simple_analysis_response.json"),
+        os.path.join(output_dir, f"{legacy_name}_simple_analysis_response.json"),
+    ]
+    for path in candidate_paths:
+        if os.path.exists(path):
+            return path, candidate_paths
+    return None, candidate_paths
 
 
 def _extract_message_content(response_json_obj):
@@ -148,12 +175,13 @@ def run_api_predefine(
     todo_file_lst = ctx.todo_file_lst
 
     analysis_summaries = []
+    attempted_response_paths = []
     for todo_file_name in todo_file_lst:
         if todo_file_name == "config.yaml":
             continue
-        save_name = todo_file_name.replace("/", "_")
-        response_path = f"{output_dir}/{save_name}_simple_analysis_response.json"
-        if not os.path.exists(response_path):
+        response_path, candidate_paths = _find_analysis_response_path(output_dir, todo_file_name)
+        attempted_response_paths.extend(candidate_paths)
+        if response_path is None:
             continue
         with open(response_path, "r", encoding="utf-8") as f:
             response_json = json.load(f)
@@ -163,8 +191,14 @@ def run_api_predefine(
             analysis_summaries.append(f"# {todo_file_name}\n{core}")
 
     if not analysis_summaries:
+        tried_preview = ", ".join(
+            os.path.basename(path) for path in attempted_response_paths[:6]
+        ) or "(no non-config todo files)"
         raise FileNotFoundError(
-            "No analyzing summaries found. Run analyzing stage first and ensure *_simple_analysis_response.json exists."
+            "No analyzing summaries found. Run analyzing stage first and ensure "
+            "*_simple_analysis_response.json exists. "
+            "Checked both safe-hash and legacy file-name patterns, for example: "
+            f"{tried_preview}"
         )
 
     analyzing_outputs_summary = "\n\n".join(analysis_summaries)

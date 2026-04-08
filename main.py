@@ -117,6 +117,7 @@ def _run_feature_mode(args, cleaned_json_path):
         pdf_json_path=args.pdf_json_path,
         pdf_latex_path=args.pdf_latex_path,
         stages=args.stages,
+        api_predefine_contract_path=args.api_predefine_contract or None,
     )
     _run_eval(args, cleaned_json_path, args.output_repo_dir, args.output_dir)
 
@@ -183,6 +184,8 @@ def _run_two_step_mode(args, cleaned_json_path):
             pdf_json_path=args.pdf_json_path,
             pdf_latex_path=args.pdf_latex_path,
             stages=feature_stages,
+            api_predefine_contract_path=os.path.join(
+                baseline_output_dir, "api_predefine_contract.pyi"),
         )
 
     _run_eval(args, cleaned_json_path, repo_dir, base,
@@ -254,6 +257,10 @@ def main():
                         help="Pipeline mode: single (original), baseline, feature, or two_step")
     parser.add_argument('--baseline_repo_dir', type=str, default="",
                         help="Baseline repo path (required for feature mode)")
+    parser.add_argument(
+        '--api_predefine_contract', type=str, default="",
+        help="Path to api_predefine_contract.pyi for feature planning (optional; else tries output_dir)",
+    )
     parser.add_argument('--stages', type=str, nargs='+',
                         default=["preprocess", "planning", "extract",
                                  "analyzing", "api_predefine", "coding",

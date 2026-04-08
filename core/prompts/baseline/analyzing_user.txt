@@ -33,7 +33,7 @@ Crucial Reminders for this analysis:
 
 1. If analyzing the dataset loader, ensure you extract exact missing-value treatments or normalizations mentioned in the paper's experiment section.
 
-2. If analyzing the model placeholder, strictly enforce the tensor shapes and ensure the [INJECTION_POINT] is clearly specified in your analysis.
+2. If analyzing the baseline model file, strictly enforce the tensor shapes and clearly specify the stable external interface that later feature-stage modifications must preserve.
 
 3. Read all dimensions and hyperparameters strictly from the provided config.yaml.
 

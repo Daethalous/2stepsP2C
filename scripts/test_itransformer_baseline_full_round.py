@@ -10,6 +10,7 @@ if ROOT_DIR not in sys.path:
 
 from core.logger import setup_logging
 from pipeline.baseline_agent import run_baseline_pipeline, DEFAULT_STAGES
+from scripts._run_path_utils import make_run_tag, resolve_default_output_path
 
 
 def _cleanup_outputs(output_dir: str, output_repo_dir: str) -> None:
@@ -44,6 +45,12 @@ def main() -> None:
         default=os.path.join("outputs", "iTransformer_baseline_full_round_repo"),
     )
     parser.add_argument(
+        "--run_tag",
+        type=str,
+        default="",
+        help="Optional suffix for output paths. Defaults to a current timestamp when using default output paths.",
+    )
+    parser.add_argument(
         "--stages",
         type=str,
         nargs="+",
@@ -56,6 +63,16 @@ def main() -> None:
         help="Skip deleting existing output_dir/output_repo_dir before running",
     )
     args = parser.parse_args()
+
+    default_output_dir = os.path.join("outputs", "iTransformer_baseline_full_round")
+    default_output_repo_dir = os.path.join("outputs", "iTransformer_baseline_full_round_repo")
+    run_tag = args.run_tag or make_run_tag()
+    args.output_dir = resolve_default_output_path(args.output_dir, default_output_dir, run_tag)
+    args.output_repo_dir = resolve_default_output_path(
+        args.output_repo_dir,
+        default_output_repo_dir,
+        run_tag,
+    )
 
     if not args.skip_cleanup:
         _cleanup_outputs(args.output_dir, args.output_repo_dir)
@@ -81,6 +98,7 @@ def main() -> None:
     print(f"[DONE] api contract: {os.path.join(args.output_dir, 'api_predefine_contract.pyi')}")
     print(f"[DONE] coding artifacts: {os.path.join(args.output_dir, 'coding_artifacts')}")
     print(f"[DONE] generated repo entry: {os.path.join(args.output_repo_dir, 'main.py')}")
+    print(f"[DONE] run_tag: {run_tag}")
 
 
 if __name__ == "__main__":

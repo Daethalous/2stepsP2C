@@ -1,45 +1,20 @@
-﻿## Paper
+## Paper
 $paper_content
 
------
-
-## Baseline Repository Summary
-$baseline_repo_summary
-
------
-
 ## Task
-Generate a planning result for feature injection.
+1. We want to reproduce the method described in the attached paper by modifying an existing baseline codebase.
+2. The following baseline repository will be used as the implementation starting point in later planning steps:
+$baseline_repo_summary
+3. Before writing any Python code, outline a comprehensive reproduction plan that covers:
+   - Key methodology details from the paper.
+   - Important experimental details such as datasets, evaluation metrics, model settings, and hyperparameters.
+   - High-level guidance on how the baseline repository will likely need to evolve to match the paper.
+4. The plan should be detailed enough to support architecture design and per-file implementation later.
 
-## Required Output Format
-Output MUST be wrapped in [CONTENT][/CONTENT] and contain exactly one valid JSON object.
-Do not output any text outside [CONTENT][/CONTENT].
+## Requirements
+- Do not provide code yet; focus on a thorough and clear roadmap.
+- If something is unclear from the paper, mention it explicitly.
+- Keep the answer in concise, well-structured prose. No JSON is required for this step.
 
-[CONTENT]
-{
-  "Plan Summary": "string",
-  "Method Requirements": ["string"],
-  "File-Level Strategy": [
-    {
-      "file": "string",
-      "action": "modify|create|keep",
-      "reason": "string"
-    }
-  ],
-  "Infrastructure Boundaries": ["string"],
-  "Risk List": ["string"],
-  "Anything UNCLEAR": "string"
-}
-[/CONTENT]
-
-## Hard Constraints
-- You MUST plan the full implementation of ALL novel algorithms described in the paper.
-- Do NOT plan any part as placeholder/stub/NotImplementedError.
-- If baseline contains `raise NotImplementedError(...)` for paper-required features, include explicit replacement in the plan.
-- Do NOT include narrative prose outside the JSON payload.
-- Keep all keys exactly as specified in the schema.
-
-## Self-check Before Output
-- Is the output a single valid JSON object inside [CONTENT][/CONTENT]?
-- Are all required keys present?
-- Did you avoid any extra explanatory text?
+## Instruction
+The response should give us a strong roadmap for adapting the baseline repository into a faithful reproduction of the paper.

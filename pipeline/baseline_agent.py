@@ -1,4 +1,4 @@
-"""Baseline Agent: generates a complete, runnable experimental baseline with placeholder model."""
+"""Baseline Agent: generates a complete, runnable experimental baseline with a simple vanilla model."""
 
 import argparse
 import os

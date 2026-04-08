@@ -52,6 +52,7 @@ Next, you must write only the "$todo_file_name".
 6. Before using a external variable/module, make sure you import it first.
 7. Write out EVERY CODE DETAIL, DON'T LEAVE TODO.
 8. REFER TO CONFIGURATION: you must use configuration from "config.yaml". DO NOT FABRICATE any configuration values.
+9. DO NOT create or import numbered Python files or task-order shadow modules.
 
 $detailed_logic_analysis
 
