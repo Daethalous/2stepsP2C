@@ -1,0 +1,17 @@
+Review the following interface stub for `$target_file`.
+
+## Dependencies of this file
+$dependency_list
+
+## Verified stubs of dependency files
+$upstream_stubs
+
+## Logic analysis for this file
+$file_analysis
+
+## Stub to review
+```python
+$stub_code
+```
+
+Evaluate this stub across all 6 review dimensions and return your JSON review.

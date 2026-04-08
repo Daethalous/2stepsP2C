@@ -47,13 +47,25 @@ def sanitize_todo_file_name(name: str) -> str:
     cleaned = name.strip().strip("'\"")
     # Drop common list prefixes: "1. ", "1) ", "- ", "* "
     cleaned = re.sub(r"^\s*(?:[-*]\s+|\d+\s*[.)]\s+)", "", cleaned)
+    # Drop numeric underscore prefixes: "1_dataset_loader.py" -> "dataset_loader.py"
+    cleaned = re.sub(r"^\d+_", "", cleaned)
+    # Strip inline description suffixes: "requirements.txt -- pin versions" -> "requirements.txt"
+    cleaned = re.sub(r"\s+--\s+.*$", "", cleaned)
     # Keep only path-like head when the item contains descriptions.
     # Examples:
     #   "src/a.py - add foo" -> "src/a.py"
     #   "main.py: update training loop" -> "main.py"
-    m = re.match(r"^([A-Za-z0-9_./\\-]+\.(?:py|yaml|yml|json))\b", cleaned)
+    m = re.match(r"^([A-Za-z0-9_./\\-]+\.(?:py|yaml|yml|json|txt|md|cfg|ini|toml))\b", cleaned)
     if m:
         cleaned = m.group(1)
+    else:
+        # Fallback: search for a filename anywhere in the string.
+        m2 = re.search(r"([A-Za-z0-9_./\\-]+\.(?:py|yaml|yml|json|txt|md|cfg|ini|toml))\b", cleaned)
+        if m2:
+            cleaned = m2.group(1)
+        else:
+            # Last resort: strip Windows-illegal characters.
+            cleaned = re.sub(r'[<>:"|?*\[\]()]', '', cleaned)
     cleaned = cleaned.replace("\\", "/")
     cleaned = re.sub(r"/{2,}", "/", cleaned).strip().lstrip("./")
     return cleaned
