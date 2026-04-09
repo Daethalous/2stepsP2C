@@ -2,3 +2,5 @@ openai
 tiktoken
 tqdm
 pyyaml
+mypy==1.4.1
+flake8==6.0.0

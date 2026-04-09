@@ -238,15 +238,15 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
         save_todo_file_name = artifact_stem
         artifact_file_path = os.path.join(artifact_output_dir, f"{save_todo_file_name}_simple_analysis.txt")
         os.makedirs(os.path.dirname(artifact_file_path), exist_ok=True)
-        with open(artifact_file_path, 'w') as f:
+        with open(artifact_file_path, 'w', encoding='utf-8') as f:
             f.write(completion_json['choices'][0]['message']['content'])
 
         done_file_lst.append(clean_todo_file_name)
 
-        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_response.json"), 'w') as f:
+        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_response.json"), 'w', encoding='utf-8') as f:
             json.dump(responses, f)
 
-        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_trajectories.json"), 'w') as f:
+        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_trajectories.json"), 'w', encoding='utf-8') as f:
             json.dump(trajectories, f)
 
     save_accumulated_cost(f"{output_dir}/accumulated_cost.json", total_accumulated_cost)

@@ -1,0 +1,44 @@
+## Paper
+$paper_content
+[WARNING: The paper above is full text. Focus ONLY on infrastructure details relevant to the code.]
+
+-----
+
+## Configuration file
+```yaml
+$config_yaml
+```
+
+-----
+
+## File to design: `$target_file`
+
+### Dependencies of this file
+$dependency_list
+
+### Verified stubs of dependency files (ALREADY DESIGNED — use these exact signatures)
+$upstream_stubs
+
+### Logic analysis for this file
+$file_analysis
+
+-----
+
+## Instructions
+
+Design the interface stub for `$target_file`.
+
+1. Output ONLY one Python code block with the complete stub.
+2. ALL function/method bodies must be exactly `pass`.
+3. Include ALL classes, functions, and methods this file will contain (public AND private).
+4. Include ALL necessary imports.
+5. Include type hints on ALL parameters and return values.
+6. Include docstrings on ALL classes and functions.
+
+CRITICAL RULES:
+- You MUST import and reference types/classes from your dependency files using the EXACT names shown in the verified stubs above.
+- Do NOT redefine or duplicate functionality that already exists in your dependencies. Instead, import it.
+- Parameter names and types MUST be consistent with the dependency stubs.
+- For tensor/array parameters, document shapes in docstrings (e.g., `x: shape [B, S, N]`).
+
+## Output: stub for `$target_file`
