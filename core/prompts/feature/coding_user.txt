@@ -1,8 +1,8 @@
 ## Target File
 `$todo_file_name`
 
-## Global API Stub
-$global_api_contract_stub
+## Baseline Interface Stub
+$baseline_interface_stub
 
 ## Integration Hint (Recently created components in other files)
 $integration_hint
@@ -93,6 +93,14 @@ $interface_constraints
 
 -----
 
+## Runtime Contract
+$runtime_contract_summary
+
+## Contract Checks
+$runtime_contract_checks
+
+-----
+
 ## File-specific logic analysis
 $detailed_logic_analysis
 
@@ -112,7 +120,9 @@ Requirements:
 - Prefer in-place replacement of the baseline execution path over adding a bypass module.
 - Use the provided required-context bundle as the authoritative source of existing interfaces and callsites; do not invent missing APIs.
 - If `Integration Hint` or `File-specific logic analysis` lists callsite updates or public interface changes, implement this file so those changes remain consistent with the known callers and imports.
+- If `Interface constraints` includes anti-simplification requirements, treat them as blocking constraints: do not replace the paper logic with a thin wrapper, passthrough helper, or bypass path.
 - If the structured `Entrypoint chain` or `Resolved Entrypoints` shows that this file lies on the real execution path, preserve that reachability and update the real callsites instead of creating a parallel path.
+- If `Runtime Contract` or `Contract Checks` names required symbols, methods, parameters, config keys, or invariants, satisfy them exactly unless the plan explicitly declares a synchronized public API change.
 - Do not create or import numbered Python files or numbered modules.
 - If this target is a new file, it must match a justified new-file decision from the planning artifacts rather than a task-order shadow module.
 

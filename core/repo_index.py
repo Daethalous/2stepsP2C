@@ -607,6 +607,24 @@ def _normalize_modification_closure_item(item: Any) -> Optional[Dict[str, Any]]:
         path = _normalize_rel_path(item.get("path") or item.get("file") or item.get("target_file"))
         if not path:
             return None
+        required_methods = {}
+        raw_required_methods = item.get("required_methods", {})
+        if isinstance(raw_required_methods, dict):
+            for class_name, methods in raw_required_methods.items():
+                key = str(class_name).strip()
+                values = [str(x).strip() for x in methods] if isinstance(methods, list) else []
+                values = [x for x in values if x]
+                if key and values:
+                    required_methods[key] = values
+        exact_params = {}
+        raw_exact_params = item.get("exact_params", {})
+        if isinstance(raw_exact_params, dict):
+            for symbol_name, params in raw_exact_params.items():
+                key = str(symbol_name).strip()
+                values = [str(x).strip() for x in params] if isinstance(params, list) else []
+                values = [x for x in values if x]
+                if key and values:
+                    exact_params[key] = values
         return {
             "path": path,
             "target_symbols": _extract_planned_symbols(item.get("target_symbols", [])),
@@ -615,8 +633,30 @@ def _normalize_modification_closure_item(item: Any) -> Optional[Dict[str, Any]]:
             "required_context_files": [_normalize_rel_path(x) for x in item.get("required_context_files", []) if _normalize_rel_path(x)],
             "entrypoints": [str(x).strip() for x in item.get("entrypoints", []) if str(x).strip()],
             "synchronized_edits": [_normalize_rel_path(x) for x in item.get("synchronized_edits", []) if _normalize_rel_path(x)],
+            "stub_contract": {
+                "required_top_level": [str(x).strip() for x in item.get("required_top_level", []) if str(x).strip()],
+                "required_methods": required_methods,
+                "exact_params": exact_params,
+            },
+            "runtime_contract": {
+                "runtime_inputs": [str(x).strip() for x in item.get("runtime_inputs", []) if str(x).strip()],
+                "runtime_outputs": [str(x).strip() for x in item.get("runtime_outputs", []) if str(x).strip()],
+                "config_keys": [str(x).strip() for x in item.get("config_keys", []) if str(x).strip()],
+                "behavioral_invariants": [str(x).strip() for x in item.get("behavioral_invariants", []) if str(x).strip()],
+            },
         }
     return None
+
+
+def _normalize_interface_contract_item(item: Any) -> Optional[Dict[str, Any]]:
+    normalized = _normalize_modification_closure_item(item)
+    if not normalized:
+        return None
+    return {
+        "path": normalized["path"],
+        "stub_contract": normalized.get("stub_contract", {}),
+        "runtime_contract": normalized.get("runtime_contract", {}),
+    }
 
 
 def build_modification_closure(
@@ -632,10 +672,19 @@ def build_modification_closure(
         normalized = _normalize_modification_closure_item(item)
         if normalized:
             explicit_map[normalized["path"]] = normalized
+    interface_contract_items = task_payload.get("Interface Contracts", []) if isinstance(task_payload, dict) else []
+    interface_contract_map: Dict[str, Dict[str, Any]] = {}
+    for item in interface_contract_items:
+        normalized = _normalize_interface_contract_item(item)
+        if normalized:
+            interface_contract_map[normalized["path"]] = normalized
 
     callsite_updates_by_file = feature_metadata.get("callsite_updates_by_file", {})
     public_changes_by_file = feature_metadata.get("public_interface_changes_by_file", {})
+    anti_simplification_by_file = feature_metadata.get("anti_simplification_by_file", {})
     replacement_targets = feature_metadata.get("core_replacement_targets", [])
+    stub_contracts_by_file = feature_metadata.get("stub_contracts_by_file", {})
+    runtime_contracts_by_file = feature_metadata.get("runtime_contracts_by_file", {})
 
     symbols_by_file: Dict[str, List[str]] = defaultdict(list)
     for row in replacement_targets:
@@ -673,8 +722,37 @@ def build_modification_closure(
             closure["required_context_files"] = list(dict.fromkeys([x for x in merged_required if x and x != path]))[:16]
         closure["upstream_callers"] = list(dict.fromkeys(explicit.get("upstream_callers", []) + closure["upstream_callers"]))[:10]
         closure["downstream_callees"] = list(dict.fromkeys(explicit.get("downstream_callees", []) + closure["downstream_callees"]))[:10]
-        interface_constraints = list(dict.fromkeys(public_changes_by_file.get(path, [])))
+        interface_constraints = list(
+            dict.fromkeys(
+                public_changes_by_file.get(path, []) + anti_simplification_by_file.get(path, [])
+            )
+        )
         closure["interface_constraints"] = interface_constraints[:12]
+        explicit_stub_contract = explicit.get("stub_contract", {}) if isinstance(explicit.get("stub_contract"), dict) else {}
+        explicit_runtime_contract = explicit.get("runtime_contract", {}) if isinstance(explicit.get("runtime_contract"), dict) else {}
+        interface_contract = interface_contract_map.get(path, {})
+        interface_stub_contract = (
+            interface_contract.get("stub_contract", {})
+            if isinstance(interface_contract.get("stub_contract"), dict)
+            else {}
+        )
+        interface_runtime_contract = (
+            interface_contract.get("runtime_contract", {})
+            if isinstance(interface_contract.get("runtime_contract"), dict)
+            else {}
+        )
+        closure["stub_contract"] = (
+            stub_contracts_by_file.get(path)
+            or interface_stub_contract
+            or explicit_stub_contract
+            or {}
+        )
+        closure["runtime_contract"] = (
+            runtime_contracts_by_file.get(path)
+            or interface_runtime_contract
+            or explicit_runtime_contract
+            or {}
+        )
         modification_closure_by_file[path] = closure
         context_bundle_by_file[path] = {
             "focus_file": path,
@@ -696,6 +774,8 @@ def build_modification_closure(
             "synchronized_edit_targets": closure["synchronized_edits"],
             "target_symbols": closure["target_symbols"],
             "interface_constraints": closure["interface_constraints"],
+            "runtime_contract": closure["runtime_contract"],
+            "stub_contract": closure["stub_contract"],
         }
     return {
         "modification_closure": modification_closure_by_file,
@@ -753,6 +833,8 @@ def collect_context_bundle(
         "target_symbols": closure.get("target_symbols", []),
         "synchronized_edit_targets": closure.get("synchronized_edits", []),
         "interface_constraints": closure.get("interface_constraints", []),
+        "runtime_contract": closure.get("runtime_contract", {}),
+        "stub_contract": closure.get("stub_contract", {}),
         "focus_role_tags": closure.get("focus_role_tags", []),
         "repo_primary_entrypoints": repo_index.get("entrypoint_index", {}).get("primary_files", []),
     }
@@ -783,6 +865,48 @@ def _render_file_group(title: str, files: List[Dict[str, str]], truncate_each: O
     return "\n".join(sections)
 
 
+def _render_runtime_contract_summary(runtime_contract: Dict[str, Any]) -> str:
+    if not isinstance(runtime_contract, dict) or not runtime_contract:
+        return "(none)"
+    sections = []
+    for label, key in (
+        ("Runtime inputs", "runtime_inputs"),
+        ("Runtime outputs", "runtime_outputs"),
+        ("Config keys", "config_keys"),
+        ("Behavioral invariants", "behavioral_invariants"),
+    ):
+        values = runtime_contract.get(key, [])
+        if isinstance(values, list) and values:
+            sections.append(label + ":\n" + "\n".join(f"- {item}" for item in values if str(item).strip()))
+    return "\n\n".join(sections) if sections else "(none)"
+
+
+def _render_runtime_contract_checks(stub_contract: Dict[str, Any]) -> str:
+    if not isinstance(stub_contract, dict) or not stub_contract:
+        return "(none)"
+    sections = []
+    top_level = stub_contract.get("required_top_level", [])
+    if isinstance(top_level, list) and top_level:
+        sections.append("Required top-level symbols:\n" + "\n".join(f"- {item}" for item in top_level if str(item).strip()))
+    required_methods = stub_contract.get("required_methods", {})
+    if isinstance(required_methods, dict) and required_methods:
+        lines = []
+        for class_name, methods in required_methods.items():
+            if methods:
+                lines.append(f"- {class_name}: {', '.join(str(x).strip() for x in methods if str(x).strip())}")
+        if lines:
+            sections.append("Required class methods:\n" + "\n".join(lines))
+    exact_params = stub_contract.get("exact_params", {})
+    if isinstance(exact_params, dict) and exact_params:
+        lines = []
+        for symbol_name, params in exact_params.items():
+            if params:
+                lines.append(f"- {symbol_name}: ({', '.join(str(x).strip() for x in params if str(x).strip())})")
+        if lines:
+            sections.append("Exact parameter contracts:\n" + "\n".join(lines))
+    return "\n\n".join(sections) if sections else "(none)"
+
+
 def render_context_bundle_for_prompt(context_bundle: Dict[str, Any]) -> Dict[str, str]:
     focus_payload = context_bundle.get("focus_file")
     focus_text = "(new file — no baseline/live code)"
@@ -804,4 +928,6 @@ def render_context_bundle_for_prompt(context_bundle: Dict[str, Any]) -> Dict[str
         "interface_constraints": "\n".join(f"- {item}" for item in context_bundle.get("interface_constraints", [])) or "(none)",
         "target_symbols": "\n".join(f"- {item}" for item in context_bundle.get("target_symbols", [])) or "(none)",
         "repo_primary_entrypoints": "\n".join(f"- {item}" for item in context_bundle.get("repo_primary_entrypoints", [])) or "(none)",
+        "runtime_contract_summary": _render_runtime_contract_summary(context_bundle.get("runtime_contract", {})),
+        "runtime_contract_checks": _render_runtime_contract_checks(context_bundle.get("stub_contract", {})),
     }

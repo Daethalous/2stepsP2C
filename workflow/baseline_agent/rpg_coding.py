@@ -263,6 +263,8 @@ def _validate_against_stub(
             continue
 
         code_params = code_sigs[func_name]
+        if func_name == "__init__" or func_name.endswith(".__init__"):
+            continue
         # Compare parameter names (ignoring *args/**kwargs)
         stub_required = [p for p in stub_params if not p.startswith("*")]
         code_required = [p for p in code_params if not p.startswith("*")]
@@ -305,18 +307,16 @@ def _load_or_build_rpg(output_dir: str) -> PipelineRPG:
 
 
 def _load_global_api_contract_stub(output_dir: str) -> str:
-    """Load the global API contract stub if it exists (legacy fallback)."""
-    # First try new combined stubs
+    """Load the combined RPG interface stub if it exists."""
     combined_path = os.path.join(output_dir, "interface_stubs_combined.py")
     if os.path.exists(combined_path):
         with open(combined_path, "r", encoding="utf-8") as fh:
             return fh.read()
-    # Fall back to old .pyi format
-    contract_path = os.path.join(output_dir, "api_predefine_contract.pyi")
-    if os.path.exists(contract_path):
-        with open(contract_path, "r", encoding="utf-8") as fh:
-            return fh.read()
-    return "(no global API contract available)"
+    return "(no combined interface stub available)"
+
+
+def _is_python_source_file(file_name: str) -> bool:
+    return file_name.endswith(".py")
 
 
 def _is_entry_point_file(file_name: str) -> bool:
@@ -379,13 +379,12 @@ def run_rpg_coding(
     overview_prompt = format_paper_content_for_prompt(context_lst[0], max_chars=12000) if len(context_lst) > 0 else ""
     design_prompt = format_paper_content_for_prompt(context_lst[1], max_chars=16000) if len(context_lst) > 1 else ""
     task_prompt = format_paper_content_for_prompt(context_lst[2], max_chars=16000) if len(context_lst) > 2 else ""
-    global_api_contract_stub = _load_global_api_contract_stub(output_dir)
-
     # ---------- Load Interface Stubs ----------
     stubs_dict = load_stubs_dict(output_dir)
     has_stubs = len(stubs_dict) > 0
     if has_stubs:
-        logger.info(f"  [RPG] Loaded {len(stubs_dict) // 2} interface stubs for enforcement")
+        unique_stub_count = len(set(stubs_dict.values()))
+        logger.info(f"  [RPG] Loaded {unique_stub_count} verified interface stubs for enforcement")
     else:
         logger.info("  [RPG] No interface stubs found — skipping stub enforcement")
 
@@ -449,8 +448,8 @@ def run_rpg_coding(
             )
 
         # Build stub context for this file
-        stub_contract = global_api_contract_stub  # fallback
-        if has_stubs:
+        stub_contract = ""
+        if has_stubs and _is_python_source_file(todo_file_name):
             own_stub, dep_stubs = get_stub_context(stubs_dict, todo_file_name, rpg)
             if own_stub:
                 stub_contract = (
@@ -464,7 +463,11 @@ def run_rpg_coding(
                         f"\n## Dependency Interfaces (VERIFIED — use these, do NOT reimplement)\n"
                         f"{dep_stubs}"
                     )
-
+            elif dep_stubs:
+                stub_contract = (
+                    "## Dependency Interfaces (VERIFIED — use these, do NOT reimplement)\n"
+                    f"{dep_stubs}"
+                )
         write_msg = [
             {"role": "user", "content": render_prompt(
                 _prompt_path(prompt_set, "coding_user.txt"),
@@ -566,7 +569,7 @@ def run_rpg_coding(
             )
 
             # Stub contract validation (NEW)
-            if has_stubs:
+            if has_stubs and _is_python_source_file(clean_todo_file_name):
                 own_stub, _ = get_stub_context(stubs_dict, clean_todo_file_name, rpg)
                 stub_warnings = _validate_against_stub(code_try, clean_todo_file_name, own_stub)
                 sig_warnings.extend(stub_warnings)

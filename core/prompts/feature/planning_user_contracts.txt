@@ -1,0 +1,78 @@
+Your goal is to generate integration closure for the previously defined feature task breakdown.
+This stage is ONLY for structural closure and callsite wiring. Do not regenerate the task list, interface contracts, or package lists here.
+
+The overall plan is:
+$overview
+
+The architecture design is:
+$design
+
+The task breakdown is:
+$task
+
+The baseline repository map is:
+$repo_manifest_summary
+
+Resolved entrypoint candidates and execution hints are:
+$entrypoint_summary
+
+Now, convert the approved task breakdown into integration closure.
+You must use the exact same file set already established by `Task list`.
+For every file in `Modification Closure`, provide structural references only: target symbols, caller/callee references, context files, entrypoints, and synchronized edits.
+This stage must NOT include interface migration rules, runtime/stub contracts, anti-simplification constraints, or forbidden-file lists.
+Never include `required_top_level`, `required_methods`, `exact_params`, `runtime_inputs`, `runtime_outputs`, `config_keys`, or `behavioral_invariants` in this stage.
+
+Allowed structural reference forms:
+- `Modification Closure.path`, `required_context_files`, and `synchronized_edits` must be real relative file paths such as `main.py` or `models/itransformer.py`.
+- `upstream_callers` and `downstream_callees` must use structural repo references only. Prefer real relative file paths.
+- `entrypoints` must use real baseline entry functions or files such as `main.py::main`.
+- Never use semantic labels, human-role descriptions, test runners, module dot-paths, or function-style prose in structural fields.
+
+Structural reference examples:
+- Wrong: `upstream_callers: ["user/CLI"]` -> Correct: `upstream_callers: ["main.py"]` or another real caller file path
+- Wrong: `entrypoints: ["pytest"]` -> Correct: `entrypoints: ["main.py::main"]`
+- Wrong: `downstream_callees: ["models.itransformer"]` -> Correct: `downstream_callees: ["models/itransformer.py"]`
+- Wrong: `upstream_callers: ["utils/io.load_config"]` -> Correct: `upstream_callers: ["main.py"]`
+
+-----
+
+## Format Example
+[CONTENT]
+{
+    "Modification Closure": [
+        {
+            "path": "model.py",
+            "target_symbols": ["BaselineModel.forward"],
+            "upstream_callers": ["trainer.py", "evaluation.py"],
+            "downstream_callees": ["layers.py"],
+            "required_context_files": ["trainer.py", "evaluation.py", "layers.py", "config.yaml"],
+            "entrypoints": ["main.py::main"],
+            "synchronized_edits": ["trainer.py", "evaluation.py", "main.py"]
+        }
+    ],
+    "Callsite Update List": [
+        ["model.py", "Update trainer.py forward calls, evaluator.py inference path, and main.py model construction imports."],
+        ["trainer.py", "Update main.py trainer initialization and any evaluator entrypoint using the old return schema."]
+    ]
+}
+[/CONTENT]
+
+## Nodes: "<node>: <type>  # <instruction>"
+- Modification Closure: typing.List[dict]  # One dict per task file. Each item must include `path`, `target_symbols`, `upstream_callers`, `downstream_callees`, `required_context_files`, `entrypoints`, and `synchronized_edits`.
+- Callsite Update List: typing.List[typing.List[str]]  # Each item must be [owning_file, required_callsite_and_import_updates]. Include every file whose public interface or execution path changes. Use an empty list only if all modified files truly preserve every callsite contract.
+
+## Constraint
+Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+- Use the exact same file set from the established `Task list`. Do not introduce new task files here unless they are already justified upstream.
+- `Modification Closure.path` and every entry in `required_context_files` / `synchronized_edits` must be real relative file paths.
+- `Modification Closure.entrypoints` must name real baseline entry functions or files that preserve the main execution path.
+- `upstream_callers` / `downstream_callees` must stay structural. Do not use values such as `user/CLI`, `pytest`, `models.itransformer`, `utils/io.load_config`, or other semantic/module-style references there.
+- Do not output `Public Interface Changes`, `Anti-Simplification Constraints`, `Forbidden File Names`, or any stub/runtime contract fields in this stage.
+- If a file needs interface/runtime contract changes, leave those details for the later `Interface contracts` stage instead of encoding them here.
+- Self-check before answering:
+- Every caller/callee/context/sync value is a real relative path or valid entrypoint reference.
+- `entrypoints` uses only real baseline entry functions/files such as `main.py::main`.
+- No structural field contains `pytest`, `user/CLI`, module dot-paths, or descriptive prose.
+
+## Action
+Follow the node instructions above, generate your output accordingly, and ensure it follows the given format example.

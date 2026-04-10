@@ -16,7 +16,12 @@ import os
 from tqdm import tqdm
 
 from core.data_loader import load_paper_content, load_pipeline_context, sanitize_todo_file_name
-from core.llm_engine import chat_completion_with_retry, create_client
+from core.llm_engine import (
+    chat_completion_with_retry,
+    create_client,
+    prepare_messages_for_api,
+    sanitize_prompt_text,
+)
 from core.logger import get_logger
 from core.prompts.templates import render_prompt
 from core.utils import (
@@ -79,14 +84,26 @@ def run_rpg_analyzing(
 
     client = create_client()
     paper_content = load_paper_content(paper_format, pdf_json_path, pdf_latex_path)
-    paper_content_prompt = format_paper_content_for_prompt(paper_content, max_chars=22000)
+    paper_content_prompt = sanitize_prompt_text(
+        format_paper_content_for_prompt(paper_content, max_chars=22000),
+        max_chars=22000,
+    )
 
     ctx = load_pipeline_context(output_dir)
-    config_yaml = ctx.config_yaml
+    config_yaml = sanitize_prompt_text(ctx.config_yaml, max_chars=16000)
     context_lst = ctx.context_lst
-    overview_prompt = format_paper_content_for_prompt(context_lst[0], max_chars=12000) if len(context_lst) > 0 else ""
-    design_prompt = format_paper_content_for_prompt(context_lst[1], max_chars=16000) if len(context_lst) > 1 else ""
-    task_prompt = format_paper_content_for_prompt(context_lst[2], max_chars=16000) if len(context_lst) > 2 else ""
+    overview_prompt = sanitize_prompt_text(
+        format_paper_content_for_prompt(context_lst[0], max_chars=12000),
+        max_chars=12000,
+    ) if len(context_lst) > 0 else ""
+    design_prompt = sanitize_prompt_text(
+        format_paper_content_for_prompt(context_lst[1], max_chars=16000),
+        max_chars=16000,
+    ) if len(context_lst) > 1 else ""
+    task_prompt = sanitize_prompt_text(
+        format_paper_content_for_prompt(context_lst[2], max_chars=16000),
+        max_chars=16000,
+    ) if len(context_lst) > 2 else ""
 
     logic_analysis_dict = dict(ctx.logic_analysis_dict)
 
@@ -116,9 +133,9 @@ def run_rpg_analyzing(
     completed_analysis_dict = {}
 
     analysis_msg = [
-        {"role": "system", "content": render_prompt(
+        {"role": "system", "content": sanitize_prompt_text(render_prompt(
             _prompt_path(prompt_set, "analyzing_system.txt"),
-            paper_format=paper_format)}
+            paper_format=paper_format))}
     ]
 
     def _load_feature_file_code(todo_file_name: str):
@@ -141,12 +158,17 @@ def run_rpg_analyzing(
         return None, "new"
 
     def get_write_msg(todo_file_name, todo_file_desc):
+        todo_file_name = sanitize_prompt_text(todo_file_name)
+        todo_file_desc = sanitize_prompt_text(todo_file_desc, max_chars=12000)
         draft_desc = f"Write the logic analysis in '{todo_file_name}', which is intended for '{todo_file_desc}'."
         if len(todo_file_desc.strip()) == 0:
             draft_desc = f"Write the logic analysis in '{todo_file_name}'."
 
         # NEW: Add upstream dependency context from RPG
-        dep_context = get_analysis_context(rpg, todo_file_name, completed_analysis_dict, max_chars=4000)
+        dep_context = sanitize_prompt_text(
+            get_analysis_context(rpg, todo_file_name, completed_analysis_dict, max_chars=4000),
+            max_chars=4000,
+        )
         if dep_context:
             deps = rpg.get_dependencies(todo_file_name)
             draft_desc += (
@@ -177,7 +199,10 @@ def run_rpg_analyzing(
             extra_kwargs["injection_info"] = get_injection_info_for_file(
                 injection_points, todo_file_name)
 
-        write_msg = [{"role": "user", "content": render_prompt(
+        draft_desc = sanitize_prompt_text(draft_desc, max_chars=20000)
+        extra_kwargs = {key: sanitize_prompt_text(value, max_chars=20000) for key, value in extra_kwargs.items()}
+
+        write_msg = [{"role": "user", "content": sanitize_prompt_text(render_prompt(
             _prompt_path(prompt_set, "analyzing_user.txt"),
             paper_content=paper_content_prompt,
             overview=overview_prompt,
@@ -186,11 +211,17 @@ def run_rpg_analyzing(
             config_yaml=config_yaml,
             draft_desc=draft_desc,
             todo_file_name=todo_file_name,
-            **extra_kwargs)}]
+            **extra_kwargs))}]
         return write_msg
 
     def api_call(msg):
-        return chat_completion_with_retry(client, gpt_version, msg)
+        safe_messages, _, payload_len = prepare_messages_for_api(msg, model=gpt_version)
+        logger.info(
+            "[RPG_ANALYSIS] Prepared payload msg_count=%s payload_len=%s",
+            len(safe_messages),
+            payload_len,
+        )
+        return chat_completion_with_retry(client, gpt_version, safe_messages)
 
     # ---------- Main analysis loop ----------
     artifact_output_dir = f"{output_dir}/analyzing_artifacts"
@@ -216,7 +247,7 @@ def run_rpg_analyzing(
             done_file_lst.append(clean_todo_file_name)
             # Load existing analysis for upstream context
             with open(_skip_path, "r", encoding="utf-8") as f:
-                completed_analysis_dict[clean_todo_file_name] = f.read()
+                completed_analysis_dict[clean_todo_file_name] = sanitize_prompt_text(f.read())
             continue
 
         # Log RPG dependency info
@@ -239,7 +270,7 @@ def run_rpg_analyzing(
             completion_json = json.loads(completion.model_dump_json())
             if prompt_set != "feature":
                 break
-            model_text = completion_json["choices"][0]["message"]["content"]
+            model_text = sanitize_prompt_text(completion_json["choices"][0]["message"]["content"])
             payload = parse_structured_json(model_text)
             required = [
                 "file", "modification_steps", "interface_contract_checklist",
@@ -250,19 +281,21 @@ def run_rpg_analyzing(
             trajectories.append({"role": "assistant", "content": model_text})
             trajectories.append({
                 "role": "user",
-                "content": (
+                "content": sanitize_prompt_text(
+                    (
                     "Your output format is invalid. Return ONLY [CONTENT]{json}[/CONTENT] "
                     f"with required keys: {required}. No extra text."
-                ),
+                )),
             })
             logger.warning(f"  [RETRY {attempt+1}/3] Schema invalid for {clean_todo_file_name}")
 
         responses.append(completion_json)
         message = completion.choices[0].message
-        trajectories.append({"role": message.role, "content": message.content})
+        model_text = sanitize_prompt_text(message.content)
+        trajectories.append({"role": message.role, "content": model_text})
 
         # Store completed analysis for downstream files
-        analysis_text = completion_json["choices"][0]["message"]["content"]
+        analysis_text = sanitize_prompt_text(completion_json["choices"][0]["message"]["content"])
         completed_analysis_dict[clean_todo_file_name] = analysis_text
 
         print_response(completion_json)

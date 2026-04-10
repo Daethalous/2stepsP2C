@@ -6,6 +6,9 @@ $repo_manifest_summary
 Resolved entrypoint candidates and execution hints:
 $entrypoint_summary
 
+Baseline RPG interface stub summary:
+$baseline_interface_stub
+
 Based on the overall plan for reproducing the paper and the provided baseline code, please design modifications to the software system.
 - If a file exists in the baseline repo and needs modification to align with the paper, list it in the "File list".
 - If a file is new, list it in the "File list".

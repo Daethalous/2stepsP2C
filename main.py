@@ -13,7 +13,7 @@ from workflow.extracting_artifacts import run_extracting_artifacts
 from workflow.analyzing import run_analyzing
 from workflow.coding import run_coding
 from evaluation.eval import run_eval
-from pipeline.baseline_agent import run_baseline_pipeline
+from pipeline.baseline_agent import DEFAULT_STAGES as BASELINE_DEFAULT_STAGES, run_baseline_pipeline
 from pipeline.feature_agent import run_feature_pipeline
 
 logger = get_logger(__name__)
@@ -117,7 +117,7 @@ def _run_feature_mode(args, cleaned_json_path):
         pdf_json_path=args.pdf_json_path,
         pdf_latex_path=args.pdf_latex_path,
         stages=args.stages,
-        api_predefine_contract_path=args.api_predefine_contract or None,
+        baseline_interface_stub_path=args.baseline_interface_stub or None,
     )
     _run_eval(args, cleaned_json_path, args.output_repo_dir, args.output_dir)
 
@@ -149,8 +149,10 @@ def _run_two_step_mode(args, cleaned_json_path):
         logger.info("======= [Two-Step] Shared Preprocess =======")
         run_pdf_process(args.pdf_json_path, cleaned_json_path)
 
-    baseline_stages = [s for s in args.stages
-                       if s in ("planning", "extract", "analyzing", "coding")]
+    baseline_stages = [
+        s for s in args.stages
+        if s in set(BASELINE_DEFAULT_STAGES) - {"preprocess"}
+    ]
     if baseline_stages:
         logger.info("======= [Two-Step] Step 1: Baseline Agent =======")
         run_baseline_pipeline(
@@ -171,7 +173,7 @@ def _run_two_step_mode(args, cleaned_json_path):
         shutil.copytree(repo_dir, baseline_snapshot_dir)
 
     feature_stages = [s for s in args.stages
-                      if s in ("planning", "extract", "analyzing", "coding")]
+                      if s in ("planning", "extract", "build_feature_rpg", "analyzing", "coding")]
     if feature_stages:
         logger.info("======= [Two-Step] Step 2: Feature Agent =======")
         run_feature_pipeline(
@@ -184,8 +186,8 @@ def _run_two_step_mode(args, cleaned_json_path):
             pdf_json_path=args.pdf_json_path,
             pdf_latex_path=args.pdf_latex_path,
             stages=feature_stages,
-            api_predefine_contract_path=os.path.join(
-                baseline_output_dir, "api_predefine_contract.pyi"),
+            baseline_interface_stub_path=os.path.join(
+                baseline_output_dir, "interface_stubs_combined.py"),
         )
 
     _run_eval(args, cleaned_json_path, repo_dir, base,
@@ -258,12 +260,13 @@ def main():
     parser.add_argument('--baseline_repo_dir', type=str, default="",
                         help="Baseline repo path (required for feature mode)")
     parser.add_argument(
-        '--api_predefine_contract', type=str, default="",
-        help="Path to api_predefine_contract.pyi for feature planning (optional; else tries output_dir)",
+        '--baseline_interface_stub', '--api_predefine_contract', dest='baseline_interface_stub',
+        type=str, default="",
+        help="Path to baseline RPG combined interface stub (interface_stubs_combined.py).",
     )
     parser.add_argument('--stages', type=str, nargs='+',
                         default=["preprocess", "planning", "extract",
-                                 "analyzing", "api_predefine", "coding",
+                                 "build_rpg", "build_feature_rpg", "analyzing", "interface_design", "coding", "typecheck",
                                  "eval_ref_free", "eval_ref_based"])
     args = parser.parse_args()
 

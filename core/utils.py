@@ -34,8 +34,6 @@ def extract_planning(trajectories_json_file_path):
                 content = content.split("</think>")[-1].strip()
             context_lst.append(content)
 
-    context_lst = context_lst[:3]
-
     return context_lst
 
 
@@ -584,3 +582,50 @@ def merge_yaml_configs(base_path: str, overlay_path: str, output_path: str) -> N
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         yaml.dump(merged, f, default_flow_style=False, allow_unicode=True)
+
+
+def resolve_baseline_interface_stub_path(explicit_path: str = None, output_dir: str = None) -> str:
+    """Resolve the combined RPG interface-stub file path if it exists."""
+    candidates = []
+
+    if explicit_path:
+        if os.path.isdir(explicit_path):
+            candidates.append(os.path.join(explicit_path, "interface_stubs_combined.py"))
+        else:
+            candidates.append(explicit_path)
+
+    if output_dir:
+        candidates.append(os.path.join(output_dir, "interface_stubs_combined.py"))
+
+    seen = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        normalized = os.path.abspath(candidate)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        if os.path.isfile(normalized):
+            return normalized
+    return ""
+
+
+def load_baseline_interface_stub_text(
+    explicit_path: str = None,
+    output_dir: str = None,
+    max_chars: int = None,
+) -> str:
+    """Load the combined RPG interface stub text, truncated if requested."""
+    stub_path = resolve_baseline_interface_stub_path(explicit_path=explicit_path, output_dir=output_dir)
+    if not stub_path:
+        return "(none)"
+    try:
+        with open(stub_path, "r", encoding="utf-8") as f:
+            text = f.read().strip()
+    except Exception:
+        return "(none)"
+    if not text:
+        return "(none)"
+    if max_chars is not None and len(text) > max_chars:
+        return text[:max_chars] + "\n...(truncated for token budget)..."
+    return text

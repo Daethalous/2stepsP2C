@@ -1,9 +1,13 @@
+import json
 import os
+import re
 import time
+from typing import Any
 from openai import OpenAI
 from core.logger import get_logger
 
 logger = get_logger(__name__)
+CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
 def _sanitize_string_for_json_payload(text: str) -> str:
@@ -12,18 +16,46 @@ def _sanitize_string_for_json_payload(text: str) -> str:
         return text
     # Replace unpaired surrogates and other invalid sequences.
     sanitized = text.encode("utf-8", errors="replace").decode("utf-8")
-    # Drop NUL bytes that may break some JSON encoders/servers.
-    return sanitized.replace("\x00", "")
+    # Drop control characters that may break JSON encoders/servers.
+    return CONTROL_CHAR_RE.sub(" ", sanitized.replace("\x00", ""))
 
 
-def _sanitize_payload(obj):
+def sanitize_prompt_text(text: Any, max_chars: int = None) -> str:
+    if text is None:
+        sanitized = ""
+    elif isinstance(text, str):
+        sanitized = text
+    else:
+        sanitized = str(text)
+    sanitized = _sanitize_string_for_json_payload(sanitized)
+    if max_chars is not None and len(sanitized) > max_chars:
+        sanitized = sanitized[:max_chars] + "\n...(truncated for token budget)..."
+    return sanitized
+
+
+def sanitize_payload(obj):
     if isinstance(obj, str):
         return _sanitize_string_for_json_payload(obj)
     if isinstance(obj, list):
-        return [_sanitize_payload(x) for x in obj]
+        return [sanitize_payload(x) for x in obj]
     if isinstance(obj, dict):
-        return {k: _sanitize_payload(v) for k, v in obj.items()}
+        return {k: sanitize_payload(v) for k, v in obj.items()}
     return obj
+
+
+def prepare_messages_for_api(messages: list, **kwargs) -> tuple[list, dict, int]:
+    safe_messages = sanitize_payload(messages)
+    safe_kwargs = sanitize_payload(kwargs)
+    dumped = json.dumps(
+        {
+            "model": safe_kwargs.get("model", ""),
+            "messages": safe_messages,
+            **{k: v for k, v in safe_kwargs.items() if k != "model"},
+        },
+        ensure_ascii=False,
+    )
+    dumped.encode("utf-8", errors="strict")
+    return safe_messages, safe_kwargs, len(dumped)
 
 
 def create_client() -> OpenAI:
@@ -31,8 +63,8 @@ def create_client() -> OpenAI:
 
 
 def chat_completion(client: OpenAI, gpt_version: str, messages: list, **kwargs):
-    safe_messages = _sanitize_payload(messages)
-    safe_kwargs = _sanitize_payload(kwargs)
+    safe_messages = sanitize_payload(messages)
+    safe_kwargs = sanitize_payload(kwargs)
     if "o3-mini" in gpt_version:
         safe_kwargs.setdefault("reasoning_effort", "high")
     return client.chat.completions.create(
@@ -43,7 +75,7 @@ def chat_completion(client: OpenAI, gpt_version: str, messages: list, **kwargs):
 
 
 def chat_completion_raw(client: OpenAI, request_json: dict):
-    safe_request_json = _sanitize_payload(request_json)
+    safe_request_json = sanitize_payload(request_json)
     return client.chat.completions.create(**safe_request_json)
 
 

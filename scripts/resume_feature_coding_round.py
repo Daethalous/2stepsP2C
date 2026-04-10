@@ -14,7 +14,8 @@ from core.data_loader import load_pipeline_context, sanitize_todo_file_name
 from core.logger import setup_logging
 from core.utils import merge_yaml_configs
 from evaluation.eval import run_eval
-from workflow.coding import run_coding
+from workflow.feature_agent.build_rpg import run_build_feature_rpg
+from workflow.feature_agent.rpg_coding import run_rpg_coding
 
 
 def _make_safe_artifact_stem(path_text: str) -> str:
@@ -69,6 +70,16 @@ def _require_feature_analyzing_artifacts(feature_output_dir: str) -> None:
             "Missing feature analyzing artifacts under feature_output_dir.\n"
             + "\n".join(f"  - {m}" for m in missing)
         )
+
+
+def _ensure_feature_rpg(feature_output_dir: str, baseline_interface_stub: str) -> None:
+    graph_path = os.path.join(feature_output_dir, "feature_rpg_graph.json")
+    if os.path.exists(graph_path):
+        return
+    run_build_feature_rpg(
+        output_dir=feature_output_dir,
+        baseline_interface_stub_path=baseline_interface_stub,
+    )
 
 
 def _cleanup_previous_outputs(feature_output_dir: str, output_repo_dir: str, eval_result_dir: str) -> None:
@@ -134,7 +145,7 @@ def main() -> None:
         help="Baseline repo snapshot used as the feature injection base",
     )
     parser.add_argument(
-        "--api_predefine_contract",
+        "--baseline_interface_stub",
         type=str,
         default=os.path.join(
             "outputs",
@@ -142,9 +153,9 @@ def main() -> None:
             "llm-detector-evasion",
             "round_1",
             "baseline",
-            "api_predefine_contract.pyi",
+            "interface_stubs_combined.py",
         ),
-        help="Path to baseline api_predefine_contract.pyi for feature coding prompt",
+        help="Path to baseline RPG combined interface stub for feature coding.",
     )
     parser.add_argument(
         "--pdf_json_path",
@@ -194,8 +205,8 @@ def main() -> None:
         raise FileNotFoundError(f"baseline_repo_dir not found: {args.baseline_repo_dir}")
     if not os.path.isfile(args.pdf_json_path):
         raise FileNotFoundError(f"pdf_json_path not found: {args.pdf_json_path}")
-    if not os.path.isfile(args.api_predefine_contract):
-        raise FileNotFoundError(f"api_predefine_contract.pyi not found: {args.api_predefine_contract}")
+    if not os.path.isfile(args.baseline_interface_stub):
+        raise FileNotFoundError(f"interface_stubs_combined.py not found: {args.baseline_interface_stub}")
     if not args.skip_eval_ref_based and not os.path.isdir(args.gold_repo_dir):
         raise FileNotFoundError(f"gold_repo_dir not found: {args.gold_repo_dir}")
 
@@ -203,9 +214,10 @@ def main() -> None:
         _cleanup_previous_outputs(args.feature_output_dir, args.output_repo_dir, args.eval_result_dir)
 
     _prepare_live_repo(args.feature_output_dir, args.output_repo_dir, args.baseline_repo_dir)
+    _ensure_feature_rpg(args.feature_output_dir, args.baseline_interface_stub)
 
     if not args.skip_coding:
-        run_coding(
+        run_rpg_coding(
             paper_name=args.paper_name,
             gpt_version=args.gpt_version,
             output_dir=args.feature_output_dir,
@@ -216,7 +228,7 @@ def main() -> None:
             prompt_set="feature",
             baseline_repo_dir=args.baseline_repo_dir,
             live_repo_dir=args.output_repo_dir,
-            api_predefine_contract_path=args.api_predefine_contract,
+            baseline_interface_stub_path=args.baseline_interface_stub,
         )
 
     os.makedirs(args.eval_result_dir, exist_ok=True)
@@ -251,7 +263,7 @@ def main() -> None:
     print(f"[DONE] feature_output_dir: {args.feature_output_dir}")
     print(f"[DONE] output_repo_dir: {args.output_repo_dir}")
     print(f"[DONE] eval_result_dir: {args.eval_result_dir}")
-    print(f"[DONE] api_predefine_contract: {args.api_predefine_contract}")
+    print(f"[DONE] baseline_interface_stub: {args.baseline_interface_stub}")
 
 
 if __name__ == "__main__":

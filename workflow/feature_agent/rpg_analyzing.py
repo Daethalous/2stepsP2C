@@ -1,15 +1,17 @@
+import argparse
+import copy
 import json
 import os
-import re
-import hashlib
+
 from tqdm import tqdm
+
+from core.data_loader import load_paper_content, load_pipeline_context, sanitize_todo_file_name
 from core.llm_engine import (
     chat_completion_with_retry,
     create_client,
     prepare_messages_for_api,
     sanitize_prompt_text,
 )
-from core.data_loader import load_paper_content, load_pipeline_context, sanitize_todo_file_name
 from core.logger import get_logger
 from core.prompts.templates import render_prompt
 from core.repo_index import (
@@ -18,13 +20,22 @@ from core.repo_index import (
     summarize_entrypoint_index,
     summarize_repo_index,
 )
-from core.utils import (print_response, print_log_cost, load_accumulated_cost,
-                        save_accumulated_cost,
-                        format_paper_content_for_prompt,
-                        load_baseline_interface_stub_text,
-                        read_python_files)
-import copy
-import argparse
+from core.utils import (
+    format_paper_content_for_prompt,
+    load_accumulated_cost,
+    load_baseline_interface_stub_text,
+    print_log_cost,
+    print_response,
+    read_python_files,
+    save_accumulated_cost,
+)
+from workflow.feature_agent.rpg_adapter import (
+    get_feature_analysis_context,
+    get_feature_file_order,
+    load_baseline_analysis_dict,
+    load_or_build_feature_rpg_bundle,
+    make_safe_artifact_stem,
+)
 
 logger = get_logger(__name__)
 
@@ -58,27 +69,18 @@ def _format_repo_reference(repo_dir: str, max_total_chars: int = 22000) -> str:
     return "".join(chunks).strip() or "(none)"
 
 
-def _make_safe_artifact_stem(path_text: str) -> str:
-    normalized = sanitize_todo_file_name(path_text) or str(path_text or "").strip()
-    normalized = normalized.replace("\\", "/")
-    readable = normalized.replace("/", "__")
-    readable = re.sub(r"[^A-Za-z0-9._-]+", "_", readable).strip("._")
-    readable = re.sub(r"_+", "_", readable)
-    if not readable:
-        readable = "artifact"
-    suffix = hashlib.sha1(normalized.encode("utf-8", errors="ignore")).hexdigest()[:10]
-    return f"{readable}_{suffix}"
-
-
-def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
-                  paper_format: str = "JSON",
-                  pdf_json_path: str = None,
-                  pdf_latex_path: str = None,
-                  prompt_set: str = None,
-                  baseline_repo_dir: str = None,
-                  live_repo_dir: str = None,
-                  baseline_interface_stub_path: str = None) -> None:
-
+def run_rpg_analyzing(
+    paper_name: str,
+    gpt_version: str,
+    output_dir: str,
+    paper_format: str = "JSON",
+    pdf_json_path: str = None,
+    pdf_latex_path: str = None,
+    prompt_set: str = None,
+    baseline_repo_dir: str = None,
+    live_repo_dir: str = None,
+    baseline_interface_stub_path: str = None,
+) -> None:
     client = create_client()
     paper_content = load_paper_content(paper_format, pdf_json_path, pdf_latex_path)
     paper_content_prompt = sanitize_prompt_text(
@@ -100,14 +102,24 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
         format_paper_content_for_prompt(context_lst[2], max_chars=16000),
         max_chars=16000,
     ) if len(context_lst) > 2 else ""
-    todo_file_lst = ctx.todo_file_lst
-    logic_analysis_dict = dict(ctx.logic_analysis_dict)
     repo_index = {
         "repo_manifest": ctx.repo_manifest,
         "symbol_index": ctx.symbol_index,
         "call_graph": ctx.call_graph,
         "entrypoint_index": ctx.entrypoint_index,
     }
+
+    rpg, file_metadata = load_or_build_feature_rpg_bundle(
+        output_dir=output_dir,
+        baseline_interface_stub_path=baseline_interface_stub_path,
+    )
+    todo_file_lst = get_feature_file_order(rpg, ctx.todo_file_lst, file_metadata)
+    completed_analysis_dict = {}
+    baseline_analysis_dict = load_baseline_analysis_dict(
+        baseline_interface_stub_path=baseline_interface_stub_path,
+        todo_file_lst=todo_file_lst,
+    )
+
     baseline_repo_summary = ""
     entrypoint_summary = ""
     baseline_interface_stub = "(none)"
@@ -134,12 +146,14 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
             max_chars=10000,
         ), max_chars=10000)
 
-    done_file_lst = ['config.yaml']
-
     analysis_msg = [
-        {"role": "system", "content": sanitize_prompt_text(render_prompt(
-            _prompt_path(prompt_set, "analyzing_system.txt"),
-            paper_format=paper_format))}]
+        {
+            "role": "system",
+            "content": sanitize_prompt_text(
+                render_prompt(_prompt_path(prompt_set, "analyzing_system.txt"), paper_format=paper_format)
+            ),
+        }
+    ]
 
     def _load_feature_file_code(todo_file_name: str):
         candidates = [todo_file_name]
@@ -160,12 +174,29 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
                         return bf.read(), "baseline"
         return None, "new"
 
-    def get_write_msg(todo_file_name, todo_file_desc):
+    def get_write_msg(todo_file_name: str, todo_file_desc: str):
         todo_file_name = sanitize_prompt_text(todo_file_name)
         todo_file_desc = sanitize_prompt_text(todo_file_desc, max_chars=12000)
         draft_desc = f"Write the logic analysis in '{todo_file_name}', which is intended for '{todo_file_desc}'."
         if len(todo_file_desc.strip()) == 0:
             draft_desc = f"Write the logic analysis in '{todo_file_name}'."
+
+        dep_context = sanitize_prompt_text(get_feature_analysis_context(
+            rpg=rpg,
+            target_file=todo_file_name,
+            completed_analysis_dict=completed_analysis_dict,
+            baseline_analysis_dict=baseline_analysis_dict,
+            max_chars=4000,
+        ), max_chars=4000)
+        if dep_context:
+            deps = rpg.get_dependencies(todo_file_name)
+            draft_desc += (
+                f"\n\n## Upstream Dependencies\n"
+                f"This file depends on: {deps}\n"
+                "Below are the logic analyses of dependency files. "
+                "Your analysis must stay consistent with their interfaces and responsibilities.\n\n"
+                f"{dep_context}"
+            )
 
         extra_kwargs = {}
         if prompt_set == "feature":
@@ -192,106 +223,108 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
                 if file_code is None:
                     extra_kwargs["baseline_file_code"] = "(new file — no baseline/live code)"
                     extra_kwargs["focus_file_code"] = "(new file — no baseline/live code)"
-                    extra_kwargs["required_context_code"] = "(none)"
-                    extra_kwargs["upstream_callers_code"] = "(none)"
-                    extra_kwargs["downstream_callees_code"] = "(none)"
-                    extra_kwargs["shared_interfaces_code"] = "(none)"
-                    extra_kwargs["config_and_registry_code"] = "(none)"
-                    extra_kwargs["optional_related_code"] = "(none)"
-                    extra_kwargs["entrypoint_chain"] = "(none)"
-                    extra_kwargs["synchronized_edit_targets"] = "(none)"
-                    extra_kwargs["interface_constraints"] = "(none)"
-                    extra_kwargs["target_symbols"] = "(none)"
                 else:
                     extra_kwargs["focus_file_code"] = file_code
                     extra_kwargs["baseline_file_code"] = f"### Source: {code_source}\n{file_code}"
-                    extra_kwargs["required_context_code"] = "(none)"
-                    extra_kwargs["upstream_callers_code"] = "(none)"
-                    extra_kwargs["downstream_callees_code"] = "(none)"
-                    extra_kwargs["shared_interfaces_code"] = "(none)"
-                    extra_kwargs["config_and_registry_code"] = "(none)"
-                    extra_kwargs["optional_related_code"] = "(none)"
-                    extra_kwargs["entrypoint_chain"] = "(none)"
-                    extra_kwargs["synchronized_edit_targets"] = "(none)"
-                    extra_kwargs["interface_constraints"] = "(none)"
-                    extra_kwargs["target_symbols"] = "(none)"
+                for key in (
+                    "required_context_code",
+                    "upstream_callers_code",
+                    "downstream_callees_code",
+                    "shared_interfaces_code",
+                    "config_and_registry_code",
+                    "optional_related_code",
+                    "entrypoint_chain",
+                    "synchronized_edit_targets",
+                    "interface_constraints",
+                    "target_symbols",
+                    "repo_primary_entrypoints",
+                ):
+                    extra_kwargs.setdefault(key, "(none)")
 
         draft_desc = sanitize_prompt_text(draft_desc, max_chars=20000)
         extra_kwargs = {key: sanitize_prompt_text(value, max_chars=22000) for key, value in extra_kwargs.items()}
 
-        write_msg=[{'role': 'user', "content": sanitize_prompt_text(render_prompt(
-            _prompt_path(prompt_set, "analyzing_user.txt"),
-            paper_content=paper_content_prompt,
-            overview=overview_prompt,
-            design=design_prompt,
-            task=task_prompt,
-            config_yaml=config_yaml,
-            draft_desc=draft_desc,
-            todo_file_name=todo_file_name,
-            **extra_kwargs))}]
-        return write_msg
+        return [
+            {
+                "role": "user",
+                "content": sanitize_prompt_text(render_prompt(
+                    _prompt_path(prompt_set, "analyzing_user.txt"),
+                    paper_content=paper_content_prompt,
+                    overview=overview_prompt,
+                    design=design_prompt,
+                    task=task_prompt,
+                    config_yaml=config_yaml,
+                    draft_desc=draft_desc,
+                    todo_file_name=todo_file_name,
+                    **extra_kwargs,
+                )),
+            }
+        ]
 
     def api_call(msg):
         safe_messages, _, payload_len = prepare_messages_for_api(msg, model=gpt_version)
         logger.info(
-            "[ANALYSIS] Prepared payload msg_count=%s payload_len=%s",
+            "[FEATURE_RPG_ANALYSIS] Prepared payload msg_count=%s payload_len=%s",
             len(safe_messages),
             payload_len,
         )
         return chat_completion_with_retry(client, gpt_version, safe_messages)
 
-    artifact_output_dir = f'{output_dir}/analyzing_artifacts'
+    artifact_output_dir = os.path.join(output_dir, "analyzing_artifacts")
     os.makedirs(artifact_output_dir, exist_ok=True)
-
     total_accumulated_cost = load_accumulated_cost(f"{output_dir}/accumulated_cost.json")
+
     for todo_file_name in tqdm(todo_file_lst):
         responses = []
         trajectories = copy.deepcopy(analysis_msg)
-
-        current_stage = f"[ANALYSIS] {todo_file_name}"
+        current_stage = f"[FEATURE_RPG_ANALYSIS] {todo_file_name}"
         logger.info(current_stage)
+
         if todo_file_name == "config.yaml":
             continue
 
         clean_todo_file_name = sanitize_todo_file_name(todo_file_name)
-        artifact_stem = _make_safe_artifact_stem(clean_todo_file_name)
-        _skip_name = artifact_stem
-        _skip_path = os.path.join(artifact_output_dir, f"{_skip_name}_simple_analysis.txt")
-        if os.path.exists(_skip_path):
-            logger.info(f"  [SKIP] artifact already exists: {_skip_path}")
-            done_file_lst.append(clean_todo_file_name)
+        artifact_stem = make_safe_artifact_stem(clean_todo_file_name)
+        artifact_file_path = os.path.join(artifact_output_dir, f"{artifact_stem}_simple_analysis.txt")
+        legacy_artifact_file_path = os.path.join(
+            artifact_output_dir, f"{clean_todo_file_name.replace('/', '_')}_simple_analysis.txt"
+        )
+        if os.path.exists(artifact_file_path) or os.path.exists(legacy_artifact_file_path):
+            existing_path = artifact_file_path if os.path.exists(artifact_file_path) else legacy_artifact_file_path
+            logger.info(f"  [SKIP] artifact already exists: {existing_path}")
+            with open(existing_path, "r", encoding="utf-8") as f:
+                completed_analysis_dict[clean_todo_file_name] = sanitize_prompt_text(f.read())
             continue
 
-        if clean_todo_file_name not in logic_analysis_dict:
-            logic_analysis_dict[clean_todo_file_name] = ""
-            
-        instruction_msg = get_write_msg(clean_todo_file_name, logic_analysis_dict[clean_todo_file_name])
+        instruction_msg = get_write_msg(clean_todo_file_name, str(ctx.logic_analysis_dict.get(clean_todo_file_name, "")))
         trajectories.extend(instruction_msg)
-
         completion = api_call(trajectories)
         completion_json = json.loads(completion.model_dump_json())
         responses.append(completion_json)
-        
+
         message = completion.choices[0].message
         model_text = sanitize_prompt_text(message.content)
-        trajectories.append({'role': message.role, 'content': model_text})
+        trajectories.append({"role": message.role, "content": model_text})
+        completed_analysis_dict[clean_todo_file_name] = model_text
 
         print_response(completion_json)
-        temp_total_accumulated_cost = print_log_cost(completion_json, gpt_version, current_stage, output_dir, total_accumulated_cost)
-        total_accumulated_cost = temp_total_accumulated_cost
+        total_accumulated_cost = print_log_cost(
+            completion_json, gpt_version, current_stage, output_dir, total_accumulated_cost
+        )
 
-        save_todo_file_name = artifact_stem
-        artifact_file_path = os.path.join(artifact_output_dir, f"{save_todo_file_name}_simple_analysis.txt")
-        os.makedirs(os.path.dirname(artifact_file_path), exist_ok=True)
-        with open(artifact_file_path, 'w', encoding='utf-8') as f:
-            f.write(sanitize_prompt_text(completion_json['choices'][0]['message']['content']))
-
-        done_file_lst.append(clean_todo_file_name)
-
-        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_response.json"), 'w', encoding='utf-8') as f:
+        with open(artifact_file_path, "w", encoding="utf-8") as f:
+            f.write(model_text)
+        with open(
+            os.path.join(output_dir, f"{artifact_stem}_simple_analysis_response.json"),
+            "w",
+            encoding="utf-8",
+        ) as f:
             json.dump(responses, f)
-
-        with open(os.path.join(output_dir, f"{save_todo_file_name}_simple_analysis_trajectories.json"), 'w', encoding='utf-8') as f:
+        with open(
+            os.path.join(output_dir, f"{artifact_stem}_simple_analysis_trajectories.json"),
+            "w",
+            encoding="utf-8",
+        ) as f:
             json.dump(trajectories, f)
 
     save_accumulated_cost(f"{output_dir}/accumulated_cost.json", total_accumulated_cost)
@@ -299,19 +332,26 @@ def run_analyzing(paper_name: str, gpt_version: str, output_dir: str,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--paper_name', type=str)
-    parser.add_argument('--gpt_version', type=str, default="o3-mini")
-    parser.add_argument('--paper_format', type=str, default="JSON", choices=["JSON", "LaTeX"])
-    parser.add_argument('--pdf_json_path', type=str)
-    parser.add_argument('--pdf_latex_path', type=str)
-    parser.add_argument('--output_dir', type=str, default="")
+    parser.add_argument("--paper_name", type=str)
+    parser.add_argument("--gpt_version", type=str, default="gpt-5-mini")
+    parser.add_argument("--paper_format", type=str, default="JSON", choices=["JSON", "LaTeX"])
+    parser.add_argument("--pdf_json_path", type=str)
+    parser.add_argument("--pdf_latex_path", type=str)
+    parser.add_argument("--output_dir", type=str, default="")
+    parser.add_argument("--baseline_repo_dir", type=str, default="")
+    parser.add_argument("--live_repo_dir", type=str, default="")
+    parser.add_argument("--baseline_interface_stub", type=str, default="")
     args = parser.parse_args()
 
-    run_analyzing(
+    run_rpg_analyzing(
         paper_name=args.paper_name,
         gpt_version=args.gpt_version,
         output_dir=args.output_dir,
         paper_format=args.paper_format,
         pdf_json_path=args.pdf_json_path,
         pdf_latex_path=args.pdf_latex_path,
+        prompt_set="feature",
+        baseline_repo_dir=args.baseline_repo_dir,
+        live_repo_dir=args.live_repo_dir,
+        baseline_interface_stub_path=args.baseline_interface_stub or None,
     )

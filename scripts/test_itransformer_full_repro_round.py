@@ -27,7 +27,7 @@ def main() -> None:
         raise EnvironmentError("OPENAI_API_KEY is required to run this script.")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--paper_name", type=str, default="RECOMBINER")
+    parser.add_argument("--paper_name", type=str, default="iTransformer")
     parser.add_argument("--gpt_version", type=str, default="gpt-5-mini")
     parser.add_argument(
         "--pdf_json_path",
@@ -37,19 +37,19 @@ def main() -> None:
             "paper2code",
             "paper2code_data",
             "iclr2024",
-            "RECOMBINER.json",
+            "iTransformer.json",
         ),
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default=os.path.join("outputs", "RECOMBINER_full_repro_round"),
+        default=os.path.join("outputs", "iTransformer_full_repro_round"),
         help="Root directory for baseline/feature/ref-eval outputs",
     )
     parser.add_argument(
         "--output_repo_dir",
         type=str,
-        default=os.path.join("outputs", "RECOMBINER_full_repro_round_repo"),
+        default=os.path.join("outputs", "iTransformer_full_repro_round_repo"),
         help="Live repo modified by feature stage and evaluated at the end",
     )
     parser.add_argument(
@@ -62,7 +62,7 @@ def main() -> None:
         "--gold_repo_dir",
         type=str,
         default=os.path.join(
-            "data", "paper2code", "gold_repos", "RECOMBINER"
+            "data", "paper2code", "gold_repos", "iTransformer"
         ),
     )
     parser.add_argument("--generated_n", type=int, default=8)
@@ -70,13 +70,13 @@ def main() -> None:
         "--baseline_stages",
         type=str,
         nargs="+",
-        default=["preprocess", "planning", "extract", "analyzing", "api_predefine", "coding"],
+        default=["preprocess", "planning", "extract", "build_rpg", "analyzing", "interface_design", "coding", "typecheck"],
     )
     parser.add_argument(
         "--feature_stages",
         type=str,
         nargs="+",
-        default=["planning", "extract", "analyzing", "coding"],
+        default=["planning", "extract", "build_feature_rpg", "analyzing", "coding"],
     )
     parser.add_argument("--skip_cleanup", action="store_true")
     parser.add_argument("--skip_baseline", action="store_true")
@@ -85,8 +85,8 @@ def main() -> None:
     parser.add_argument("--skip_eval_ref_based", action="store_true")
     args = parser.parse_args()
 
-    default_output_dir = os.path.join("outputs", "RECOMBINER_full_repro_round")
-    default_output_repo_dir = os.path.join("outputs", "RECOMBINER_full_repro_round_repo")
+    default_output_dir = os.path.join("outputs", "iTransformer_full_repro_round")
+    default_output_repo_dir = os.path.join("outputs", "iTransformer_full_repro_round_repo")
     run_tag = args.run_tag or make_run_tag()
     args.output_dir = resolve_default_output_path(args.output_dir, default_output_dir, run_tag)
     args.output_repo_dir = resolve_default_output_path(
@@ -146,8 +146,8 @@ def main() -> None:
             pdf_json_path=args.pdf_json_path,
             pdf_latex_path=None,
             stages=args.feature_stages,
-            api_predefine_contract_path=os.path.join(
-                baseline_output_dir, "api_predefine_contract.pyi"
+            baseline_interface_stub_path=os.path.join(
+                baseline_output_dir, "interface_stubs_combined.py"
             ),
         )
 

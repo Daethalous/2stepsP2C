@@ -53,6 +53,7 @@ If two files need analysis, split them into two separate items, for example `["r
         ]
     ],
     "Task list": [
+        "data_preprocessing.py",
         "dataset_loader.py", 
         "model.py",  
         "trainer.py", 
@@ -69,8 +70,8 @@ If two files need analysis, split them into two separate items, for example `["r
 ## Nodes: "<node>: <type>  # <instruction>"
 - Required packages: typing.Optional[typing.List[str]]  # Provide required third-party packages in requirements.txt format.(e.g., 'numpy==1.21.0').
 - Required Other language third-party packages: typing.List[str]  # List down packages required for non-Python languages. If none, specify "No third-party dependencies required".
-- Logic Analysis: typing.List[typing.List[str]]  # Provide a list of `[relative_file_path, description]` items. The first element must be a single file path only, and the second element should contain the detailed dependency analysis and implementation notes.
-- Task list: typing.List[str]  # Break down the tasks into a list of relative file paths, prioritized based on dependency order. Each item must be a pure file path only, without descriptions. The task list must include the previously generated file list.
+- Logic Analysis: typing.List[typing.List[str]]  # Provide a list of `[relative_file_path, description]` items. The first element must be a single file path only, and the second element should contain the detailed dependency analysis and implementation notes. Keep each description as 1-3 plain-text sentences only. Do not embed code blocks, malformed quotes, or complex escaping inside JSON strings.
+- Task list: typing.List[str]  # Break down the tasks into a list of relative file paths, prioritized based on dependency order. Each item must be a pure file path only, without descriptions. The task list must contain the same file set as `Logic Analysis`.
 - Full API spec: <class 'str'>  # Describe all APIs using OpenAPI 3.0 spec that may be used by both frontend and backend. If front-end and back-end communication is not required, leave it blank.
 - Shared Knowledge: <class 'str'>  # Detail any shared knowledge, like common utility functions or configuration variables.
 - Anything UNCLEAR: <class 'str'>  # Mention any unresolved questions or clarifications needed from the paper or project scope.
@@ -81,6 +82,8 @@ Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothi
 - The payload inside `[CONTENT]...[/CONTENT]` must be valid JSON parseable by `json.loads`.
 - `Task list` items must be real relative file paths only, not task titles or directory names. Do not restrict yourself to only Python/YAML/JSON files when the task genuinely targets another file type.
 - `Logic Analysis` file keys must also be real relative file paths only, one file per item, not merged labels or descriptions.
+- `Task list` and `Logic Analysis` must contain the same file set.
+- Keep descriptions concise plain text. Do not place code blocks or heavily escaped pseudo-code inside JSON strings.
 
 ## Action
 Follow the node instructions above, generate your output accordingly, and ensure it follows the given format example.

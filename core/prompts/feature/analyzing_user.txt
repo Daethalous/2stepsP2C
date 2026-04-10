@@ -31,6 +31,11 @@ $repo_manifest_summary
 ## Entrypoint Summary
 $entrypoint_summary
 
+## Baseline Interface Stub
+```python
+$baseline_interface_stub
+```
+
 -----
 
 ## Target File

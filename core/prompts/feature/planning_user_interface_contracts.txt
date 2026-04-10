@@ -1,0 +1,126 @@
+Your goal is to generate interface contracts for the previously defined feature task breakdown and integration closure.
+This stage is ONLY for interface migration rules, anti-simplification constraints, forbidden-file constraints, and per-file stub/runtime contracts. Do not regenerate the task list, closure graph, or package lists here.
+
+The overall plan is:
+$overview
+
+The architecture design is:
+$design
+
+The task breakdown is:
+$task
+
+The integration closure is:
+$closure
+
+The baseline repository map is:
+$repo_manifest_summary
+
+Resolved entrypoint candidates and execution hints are:
+$entrypoint_summary
+
+Baseline RPG interface stub summary:
+$baseline_interface_stub
+
+Now, convert the approved task breakdown and closure into interface contracts.
+You must use the exact same file set already established by `Task list`.
+`Interface Contracts` does NOT need to cover every task file. Only emit items for files that truly need explicit interface/runtime contracts.
+Use `Public Interface Changes` to explicitly name any non-constructor owner symbol whose signature, return contract, factory registration, or entrypoint wiring changes.
+Use `Constructor Instantiation Changes` to explicitly name constructor and instantiation-path updates using `Class.__init__`.
+Use `Interface Contracts` to attach per-file stub/runtime contract fields.
+Avoid placing `Class.__init__` inside `Public Interface Changes`; constructor changes should be tracked separately.
+For non-Python files, do NOT use Python stub keys such as `required_top_level`, `required_methods`, or `exact_params`; keep them to config/runtime constraints only when truly necessary.
+Use `Anti-Simplification Constraints` to mark paper-critical behaviors that must not be collapsed into thin wrappers, generic fallbacks, or detached side paths.
+Use `Forbidden File Names` to list numbered or shadow-module names that must not be introduced.
+
+Allowed symbol forms:
+- Top-level functions in `Public Interface Changes` must use bare function names only, such as `run`, `parse_cli_args`, or `mse`.
+- Methods in `Public Interface Changes` must use `Class.method`.
+- Constructors must appear only in `Constructor Instantiation Changes` and must use exactly `Class.__init__`.
+- Never use module-qualified symbols such as `main.run`, `utils.metrics.mse`, `pkg.module.func`, `module.Class.method`, or file-path-prefixed names.
+
+Symbol examples:
+- Wrong: `main.run` -> Correct: `run`
+- Wrong: `utils.metrics.mse` -> Correct: `mse`
+- Wrong: `models.ITransformer.__init__` -> Correct: `ITransformer.__init__`
+- Wrong: `trainer.Trainer.train` -> Correct: `Trainer.train`
+
+-----
+
+## Format Example
+[CONTENT]
+{
+    "Interface Contracts": [
+        {
+            "path": "model.py",
+            "required_top_level": ["BaselineModel"],
+            "required_methods": {
+                "BaselineModel": ["__init__", "forward"]
+            },
+            "exact_params": {
+                "BaselineModel.forward": ["self", "x", "mask"]
+            },
+            "runtime_inputs": [
+                "x: Tensor[B,L,N]",
+                "mask?: Tensor[B,L,N]"
+            ],
+            "runtime_outputs": [
+                "pred: Tensor[B,S,N]",
+                "aux?: dict[str, Tensor]"
+            ],
+            "config_keys": [
+                "model.lookback_window",
+                "model.prediction_horizon"
+            ],
+            "behavioral_invariants": [
+                "forward stays on the main train/eval path",
+                "return schema stays synchronized with trainer.py and evaluation.py"
+            ]
+        }
+    ],
+    "Public Interface Changes": [
+        ["run", "Updates the main execution entrypoint to construct the new model and preserve CLI/config wiring", "main.py, trainer.py"],
+        ["BaselineModel.forward", "Adds mask and auxiliary state outputs", "trainer.py, evaluator.py"],
+        ["Trainer.train", "Returns metrics dict instead of scalar", "main.py"]
+    ],
+    "Constructor Instantiation Changes": [
+        ["BaselineModel.__init__", "Adds paper-specific constructor inputs and requires synchronized instantiation updates", "main.py, trainer.py"]
+    ],
+    "Anti-Simplification Constraints": [
+        ["model.py", "Do not replace the paper-specific core path with a thin wrapper or bypass helper; the real entrypoint must still reach the new algorithm.", "trainer.py, evaluation.py, main.py"],
+        ["trainer.py", "Do not collapse required paper-specific training behavior into a generic no-op trainer flow.", "main.py"]
+    ],
+    "Forbidden File Names": [
+        "1_utils.py",
+        "2_model.py",
+        "<number>_*.py"
+    ]
+}
+[/CONTENT]
+
+## Nodes: "<node>: <type>  # <instruction>"
+- Interface Contracts: typing.List[dict]  # One dict per task file that needs explicit interface/runtime contract. Each item must include `path`, and may include `required_top_level`, `required_methods`, `exact_params`, `runtime_inputs`, `runtime_outputs`, `config_keys`, and `behavioral_invariants`. Non-Python files must not use Python stub keys.
+- Public Interface Changes: typing.List[typing.List[str]]  # Each item must be [symbol, change_summary, affected_files]. Use this for non-constructor API changes such as return-schema changes, registry/factory changes, and entrypoint changes. Symbol must be the owner symbol, using only a bare function name or `Class.method`. Do NOT use `Class.__init__` here.
+- Constructor Instantiation Changes: typing.List[typing.List[str]]  # Each item must be [symbol, change_summary, affected_files]. Symbol must be exactly `Class.__init__`. Use this for constructor signature drift and synchronized instantiation-path updates.
+- Anti-Simplification Constraints: typing.List[typing.List[str]]  # Each item must be [owning_file, constraint_summary, rationale_or_affected_files]. Use this to name the paper-critical behaviors that must NOT be simplified away, bypassed, or replaced by a thin wrapper.
+- Forbidden File Names: typing.List[str]  # List numbered or shadow-module names/patterns that must not be created or imported.
+
+## Constraint
+Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+- Use the exact same file set from the established `Task list`. Do not introduce new task files here unless they are already justified upstream.
+- `Interface Contracts.path` must be a real relative file path from `Task list`.
+- Non-Python files may omit `Interface Contracts` entirely; if included, they may only carry config/runtime constraints and must not use Python stub keys.
+- Keep stub/runtime contract fields structural and compact: use only `list[str]` or `dict[str, list[str]]`, not nested prose blobs.
+- `Public Interface Changes` must cover every non-constructor baseline-stub conflict implied by the new contracts, using owner symbols that align with the baseline interface stub.
+- `Constructor Instantiation Changes` must cover every constructor (`Class.__init__`) baseline-stub conflict implied by the new contracts.
+- `Public Interface Changes[0]` must exactly match a non-constructor contract owner: either a bare function name or `Class.method`. Do not use file paths, `module.Class.method`, descriptive phrases, or `Class.__init__` there.
+- If a required top-level function appears in `Interface Contracts.required_top_level`, record its conflict in `Public Interface Changes` using the same bare function name, not a module-qualified form.
+- `Constructor Instantiation Changes[0]` must be exactly `Class.__init__` and must align with an owner declared in `Interface Contracts`.
+- Do not repeat `Modification Closure` or `Callsite Update List` in this stage.
+- Self-check before answering:
+- Every non-constructor baseline-stub conflict uses a bare function or `Class.method`.
+- Every `Class.__init__` appears only in `Constructor Instantiation Changes`.
+- `Public Interface Changes` contains no module prefixes such as `main.run` or `utils.metrics.mse`.
+
+## Action
+Follow the node instructions above, generate your output accordingly, and ensure it follows the given format example.

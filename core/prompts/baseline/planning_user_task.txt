@@ -54,14 +54,16 @@ The Logic Analysis should not only consider the dependencies between files but a
 ## Nodes: "<node>: <type>  # <instruction>"
 - Required packages: typing.Optional[typing.List[str]]  # Provide required third-party packages in requirements.txt format.(e.g., 'numpy==1.21.0').
 - Required Other language third-party packages: typing.List[str]  # List down packages required for non-Python languages. If none, specify "No third-party dependencies required".
-- Logic Analysis: typing.List[typing.List[str]]  # Provide a list of files with the classes/methods/functions to be implemented, including dependency analysis and imports. You MUST enforce the Tensor shape constraints and the stable external interface for the baseline model. Include as much detailed description as possible.
-- Task list: typing.List[str]  # Break down the tasks into a list of filenames, prioritized based on dependency order (e.g., data and model first, then trainer, then main). The task list must include the previously generated file list.
+- Logic Analysis: typing.List[typing.List[str]]  # Provide a list of files with the classes/methods/functions to be implemented, including dependency analysis and imports. You MUST enforce the Tensor shape constraints and the stable external interface for the baseline model. Keep each description as 1-3 plain-text sentences only. Do not embed code blocks, malformed quotes, or complex escaping inside JSON strings.
+- Task list: typing.List[str]  # Break down the tasks into a list of filenames, prioritized based on dependency order (e.g., data and model first, then trainer, then main). The task list must contain the same file set as `Logic Analysis`.
 - Full API spec: <class 'str'>  # Describe all APIs using OpenAPI 3.0 spec that may be used by both frontend and backend. If front-end and back-end communication is not required, leave it blank.
 - Shared Knowledge: <class 'str'>  # Detail any shared knowledge, like common utility functions or configuration variables.
 - Anything UNCLEAR: <class 'str'>  # Mention any unresolved questions or clarifications needed.
 
 ## Constraint
 Format: output wrapped inside [CONTENT][/CONTENT] like the format example, nothing else.
+- `Task list` and `Logic Analysis` must contain the same file set.
+- Keep descriptions concise plain text. Do not place code blocks or heavily escaped pseudo-code inside JSON strings.
 
 ## Action
 Follow the node instructions above, generate your output accordingly, and ensure it follows the given format example.

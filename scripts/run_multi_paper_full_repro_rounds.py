@@ -213,8 +213,8 @@ def _run_single_round(
         pdf_json_path=pdf_json_path,
         pdf_latex_path=None,
         stages=feature_stages,
-        api_predefine_contract_path=os.path.join(
-            baseline_output_dir, "api_predefine_contract.pyi"
+        baseline_interface_stub_path=os.path.join(
+            baseline_output_dir, "interface_stubs_combined.py"
         ),
     )
 
@@ -312,13 +312,13 @@ def main() -> None:
         "--baseline_stages",
         type=str,
         nargs="+",
-        default=["preprocess", "planning", "extract", "analyzing", "api_predefine", "coding"],
+        default=["preprocess", "planning", "extract", "build_rpg", "analyzing", "interface_design", "coding", "typecheck"],
     )
     parser.add_argument(
         "--feature_stages",
         type=str,
         nargs="+",
-        default=["planning", "extract", "analyzing", "coding"],
+        default=["planning", "extract", "build_feature_rpg", "analyzing", "coding"],
     )
     parser.add_argument("--skip_cleanup", action="store_true")
     args = parser.parse_args()

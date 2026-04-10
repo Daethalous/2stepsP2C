@@ -30,15 +30,18 @@ Design the interface stub for `$target_file`.
 
 1. Output ONLY one Python code block with the complete stub.
 2. ALL function/method bodies must be exactly `pass`.
-3. Include ALL classes, functions, and methods this file will contain (public AND private).
+3. Include ONLY the public API explicitly required by the logic analysis and any minimal helper methods that are clearly necessary for that API.
 4. Include ALL necessary imports.
-5. Include type hints on ALL parameters and return values.
-6. Include docstrings on ALL classes and functions.
+5. Keep stable symbol names, parameter names, parameter order, and responsibilities exactly as described in the logic analysis when they are specified.
+6. Add concise docstrings for the main public classes/functions; do not turn the stub into a long implementation design document.
 
 CRITICAL RULES:
 - You MUST import and reference types/classes from your dependency files using the EXACT names shown in the verified stubs above.
 - Do NOT redefine or duplicate functionality that already exists in your dependencies. Instead, import it.
 - Parameter names and types MUST be consistent with the dependency stubs.
 - For tensor/array parameters, document shapes in docstrings (e.g., `x: shape [B, S, N]`).
+- If the task analysis lists a stable constructor or function signature, preserve it exactly.
+- Do NOT invent extra public APIs such as `from_config`, `predict`, `build_*`, `initialize_*`, factory wrappers, abstract base classes, or registries unless the task analysis explicitly requires them.
+- Prefer a narrow stub that matches the required contract over a broad generic utility/template module.
 
 ## Output: stub for `$target_file`

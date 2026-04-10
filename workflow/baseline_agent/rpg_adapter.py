@@ -13,11 +13,13 @@ use to query the RPG for context-building:
 import json
 import os
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import unquote
 
 from core.logger import get_logger
 from core.utils import extract_interface_signatures
 
 logger = get_logger(__name__)
+FALLBACK_MARKER = "auto-generated fallback"
 
 
 # Import PipelineRPG from our own module
@@ -213,20 +215,54 @@ def load_stubs_dict(output_dir: str) -> Dict[str, str]:
         logger.info("  [RPG] No stubs/ directory found — skipping stub loading")
         return stubs_dict
 
+    index_path = os.path.join(stubs_dir, "_index.json")
+    if os.path.exists(index_path):
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                index_data = json.load(f)
+            statuses = index_data.get("statuses", {})
+            if isinstance(statuses, dict) and statuses:
+                loaded_count = 0
+                for target_file, meta in statuses.items():
+                    if not isinstance(meta, dict) or meta.get("status") != "verified":
+                        continue
+                    storage_name = meta.get("storage_name")
+                    if not storage_name:
+                        continue
+                    fpath = os.path.join(stubs_dir, storage_name)
+                    if not os.path.exists(fpath):
+                        continue
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        code = f.read()
+                    if FALLBACK_MARKER in code.lower():
+                        continue
+                    stubs_dict[target_file] = code
+                    if target_file.endswith(".py"):
+                        stubs_dict[target_file[:-3]] = code
+                    loaded_count += 1
+                logger.info(f"  [RPG] Loaded {loaded_count} verified stubs from {stubs_dir}")
+                return stubs_dict
+        except Exception as exc:
+            logger.warning(f"  [RPG] Failed to read stub index {index_path}: {exc}. Falling back to directory scan.")
+
     for fname in os.listdir(stubs_dir):
         if fname.startswith("_") or not fname.endswith(".py"):
             continue
         fpath = os.path.join(stubs_dir, fname)
         with open(fpath, "r", encoding="utf-8") as f:
             code = f.read()
-        # Convert filename back: src_metrics.py -> src/metrics
-        key = fname[:-3].replace("_", "/", 1) if "_" in fname else fname[:-3]
-        # Try multiple key formats to match
+        if FALLBACK_MARKER in code.lower():
+            continue
+        key = unquote(fname[:-3])
         stubs_dict[key] = code
-        # Also store with .py extension variant
-        stubs_dict[key + ".py"] = code
+        legacy_key = fname[:-3].replace("_", "/", 1) if "_" in fname else fname[:-3]
+        stubs_dict[legacy_key] = code
+        if key.endswith(".py"):
+            stubs_dict[key[:-3]] = code
+        if legacy_key.endswith(".py"):
+            stubs_dict[legacy_key[:-3]] = code
 
-    logger.info(f"  [RPG] Loaded {len(stubs_dict) // 2} stubs from {stubs_dir}")
+    logger.info(f"  [RPG] Loaded {len(stubs_dict)} stub aliases from {stubs_dir}")
     return stubs_dict
 
 

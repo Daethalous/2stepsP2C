@@ -17,7 +17,8 @@ from core.utils import (extract_code_from_content, print_response, print_log_cos
                         read_python_files,
                         format_paper_content_for_prompt,
                         build_code_interface_summary,
-                        contains_forbidden_placeholders)
+                        contains_forbidden_placeholders,
+                        load_baseline_interface_stub_text)
 import argparse
 
 logger = get_logger(__name__)
@@ -122,16 +123,13 @@ def _ensure_path_within_root(root_dir: str, target_path: str) -> str:
     return target_abs
 
 
-def _load_global_api_contract_stub(output_dir: str, explicit_path: str = None) -> str:
-    contract_path = explicit_path or os.path.join(output_dir, "api_predefine_contract.pyi")
-    if not os.path.exists(contract_path):
-        return "(none)"
-    try:
-        with open(contract_path, "r", encoding="utf-8") as f:
-            text = f.read().strip()
-        return _sanitize_prompt_text(text if text else "(none)", max_chars=FEATURE_API_CONTRACT_MAX_CHARS)
-    except Exception:
-        return "(none)"
+def _load_baseline_interface_stub(output_dir: str, explicit_path: str = None) -> str:
+    text = load_baseline_interface_stub_text(
+        explicit_path=explicit_path,
+        output_dir=output_dir,
+        max_chars=FEATURE_API_CONTRACT_MAX_CHARS,
+    )
+    return _sanitize_prompt_text(text if text else "(none)", max_chars=FEATURE_API_CONTRACT_MAX_CHARS)
 
 
 def _build_done_code_context(done_file_dict: dict, done_file_lst: list, max_total_chars: int = 20000) -> str:
@@ -164,7 +162,7 @@ def run_coding(paper_name: str, gpt_version: str, output_dir: str,
                prompt_set: str = None,
                baseline_repo_dir: str = None,
                live_repo_dir: str = None,
-               api_predefine_contract_path: str = None) -> None:
+               baseline_interface_stub_path: str = None) -> None:
     _debug_log(
         run_id="initial",
         hypothesis_id="H1",
@@ -206,8 +204,8 @@ def run_coding(paper_name: str, gpt_version: str, output_dir: str,
     task_prompt = _sanitize_prompt_text(
         format_paper_content_for_prompt(context_lst[2], max_chars=16000), max_chars=16000
     ) if len(context_lst) > 2 else ""
-    global_api_contract_stub = _load_global_api_contract_stub(
-        output_dir, explicit_path=api_predefine_contract_path
+    baseline_interface_stub = _load_baseline_interface_stub(
+        output_dir, explicit_path=baseline_interface_stub_path
     )
     todo_file_lst = ctx.todo_file_lst
     done_file_lst = ['config.yaml']
@@ -634,7 +632,8 @@ def run_coding(paper_name: str, gpt_version: str, output_dir: str,
             todo_file_name=todo_file_name,
             done_file_lst=done_file_lst,
             detailed_logic_analysis=sanitized_analysis,
-            global_api_contract_stub=global_api_contract_stub,
+            global_api_contract_stub=baseline_interface_stub,
+            baseline_interface_stub=baseline_interface_stub,
             **extra_kwargs)}]
         segment_meta = {
             "paper_content_len": len(paper_content_prompt),
@@ -644,7 +643,7 @@ def run_coding(paper_name: str, gpt_version: str, output_dir: str,
             "config_yaml_len": len(config_yaml),
             "code_files_len": len(code_files),
             "detailed_logic_analysis_len": len(sanitized_analysis),
-            "global_api_contract_stub_len": len(global_api_contract_stub),
+            "baseline_interface_stub_len": len(baseline_interface_stub),
             "baseline_file_code_len": len(extra_kwargs.get("baseline_file_code", "")),
             "integration_hint_len": len(extra_kwargs.get("integration_hint", "")),
             "required_context_code_len": len(extra_kwargs.get("required_context_code", "")),
@@ -829,7 +828,10 @@ if __name__ == "__main__":
     parser.add_argument('--pdf_latex_path', type=str)
     parser.add_argument('--output_dir', type=str, default="")
     parser.add_argument('--output_repo_dir', type=str, default="")
-    parser.add_argument('--api_predefine_contract', type=str, default="")
+    parser.add_argument(
+        '--baseline_interface_stub', '--api_predefine_contract', dest='baseline_interface_stub',
+        type=str, default=""
+    )
     args = parser.parse_args()
 
     run_coding(
@@ -840,5 +842,5 @@ if __name__ == "__main__":
         paper_format=args.paper_format,
         pdf_json_path=args.pdf_json_path,
         pdf_latex_path=args.pdf_latex_path,
-        api_predefine_contract_path=args.api_predefine_contract or None,
+        baseline_interface_stub_path=args.baseline_interface_stub or None,
     )

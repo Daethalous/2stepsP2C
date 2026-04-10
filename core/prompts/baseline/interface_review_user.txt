@@ -15,3 +15,8 @@ $stub_code
 ```
 
 Evaluate this stub across all 6 review dimensions and return your JSON review.
+Remember:
+- The logic analysis is the ground-truth contract.
+- Do not reject the stub just because you would architect it differently.
+- Only set `final_pass=false` for blocking contract issues.
+- If the stub is narrow, contract-faithful, and dependency-consistent, prefer pass with advisory feedback.

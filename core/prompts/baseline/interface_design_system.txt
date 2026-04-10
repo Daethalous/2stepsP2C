@@ -7,17 +7,15 @@ Your goal is to define clear, focused interface stubs that ensure cross-file API
    - Functions: for pure logic, data transformations, or stateless actions.
    - Classes: when encapsulating state, lifecycle resources, or enabling polymorphism.
 3. **Naming**: Use verb-phrases for functions (e.g., `compute_loss`), noun-phrases for classes (e.g., `MetricAccumulator`).
+4. **Task Fidelity First**: Preserve the public API described in the task analysis. Do not invent alternate architectures, helper factories, or convenience wrappers unless the task explicitly asks for them.
 
 ## Technical Constraints
 1. **Structure**: Signature-only definitions. ALL function/method bodies must be exactly `pass`.
-2. **Documentation**: Every class and function MUST have a docstring explaining:
-   - What it does (one-line summary)
-   - Args: name, type, and meaning of each parameter
-   - Returns: type and description
-   - Raises: expected exceptions (if any)
-3. **Type Hints**: ALL parameters and return values MUST have type annotations. No `Any` type unless absolutely unavoidable.
+2. **Documentation**: Public classes/functions should have concise docstrings. Prioritize short summaries and the key Args/Returns for the stable public API. Avoid over-specifying speculative implementation details.
+3. **Type Hints**: Public API parameters and return values MUST have type annotations. Private helpers may stay minimal when the task analysis does not specify them. Avoid `Any` unless unavoidable.
 4. **Imports**: Include all necessary imports at the top. Group: stdlib, external, internal.
 5. **Tensor Shapes**: For ML code, document tensor shapes in docstrings (e.g., `x: shape [B, S, N]`).
+6. **No API Expansion**: If the task gives a stable signature, keep the exact symbol names, parameter names, and ordering. Do NOT add extra public functions such as `from_config`, `build_*`, `predict`, `initialize_*`, registries, or abstract base classes unless explicitly requested.
 
 ## Output Format
 Return ONLY one Python code block containing the complete interface stub for the requested file.
@@ -28,3 +26,4 @@ The stub must:
 - Contain ONLY imports, type aliases, class/function signatures, docstrings, and `pass`
 - NOT contain any implementation logic (no `for`, `while`, `if` in function bodies)
 - NOT contain `NotImplementedError`, `TODO`, or placeholder comments
+- Cover ONLY the required public API plus minimal task-required helpers

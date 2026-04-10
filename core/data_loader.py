@@ -42,6 +42,11 @@ class PipelineContext(NamedTuple):
     context_bundle_by_file: Dict[str, Any]
 
 
+PLANNING_CONTRACTS_FILENAME = "planning_contracts.json"
+PLANNING_CLOSURE_FILENAME = "planning_closure.json"
+PLANNING_INTERFACE_CONTRACTS_FILENAME = "planning_interface_contracts.json"
+
+
 def _get_key(d: dict, *keys: str):
     for k in keys:
         if k in d:
@@ -217,11 +222,14 @@ def _normalize_string_matrix(value: Any) -> List[List[str]]:
                 "target_file",
                 "file",
                 "owning_file",
+                "constraint",
+                "constraint_summary",
                 "target_symbol",
                 "symbol",
                 "replacement_mode",
                 "change_summary",
                 "affected_files",
+                "rationale_or_affected_files",
                 "rationale",
                 "details",
             ):
@@ -259,6 +267,124 @@ def _append_unique(mapping: Dict[str, List[str]], file_key: str, text: str) -> N
     bucket = mapping.setdefault(file_key, [])
     if text not in bucket:
         bucket.append(text)
+
+
+def _parse_symbol_owner_reference(text: str) -> Dict[str, str]:
+    raw = str(text or "").strip()
+    if not raw:
+        return {}
+    symbol_text = raw.split("(", 1)[0].strip()
+    if "." in symbol_text:
+        owner, member = symbol_text.rsplit(".", 1)
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", owner) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", member):
+            return {"owner": owner, "member": member}
+        return {}
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", symbol_text):
+        return {"name": symbol_text}
+    return {}
+
+
+def _infer_public_change_owner_files(
+    item: List[str],
+    modification_closure: List[dict],
+    interface_contracts: List[dict] | None = None,
+) -> List[str]:
+    if not item:
+        return []
+    owner_ref = _parse_symbol_owner_reference(item[0] if item else "")
+    if not owner_ref:
+        return []
+    owner_files = []
+    seen = set()
+    raw_symbol = str(item[0]).strip()
+    combined_items = []
+    if isinstance(modification_closure, list):
+        combined_items.extend(modification_closure)
+    if isinstance(interface_contracts, list):
+        combined_items.extend(interface_contracts)
+    for closure_item in combined_items:
+        if not isinstance(closure_item, dict):
+            continue
+        file_key = sanitize_todo_file_name(
+            str(closure_item.get("path") or closure_item.get("file") or closure_item.get("target_file") or "")
+        )
+        if not file_key or file_key in seen:
+            continue
+        target_symbols = _normalize_string_list(closure_item.get("target_symbols"))
+        required_top_level = _normalize_string_list(closure_item.get("required_top_level"))
+        required_methods = closure_item.get("required_methods") if isinstance(closure_item.get("required_methods"), dict) else {}
+        exact_params = closure_item.get("exact_params") if isinstance(closure_item.get("exact_params"), dict) else {}
+        matched = False
+        if raw_symbol and raw_symbol in target_symbols:
+            matched = True
+        elif owner_ref.get("name") and owner_ref["name"] in required_top_level:
+            matched = True
+        elif owner_ref.get("name") and owner_ref["name"] in [str(x).strip() for x in exact_params.keys()]:
+            matched = True
+        elif owner_ref.get("member") and owner_ref.get("owner"):
+            methods = _normalize_string_list(required_methods.get(owner_ref["owner"]))
+            if owner_ref["member"] in methods:
+                matched = True
+            exact_keys = [str(x).strip() for x in exact_params.keys()]
+            if f"{owner_ref['owner']}.{owner_ref['member']}" in exact_keys:
+                matched = True
+            if f"{owner_ref['owner']}::{owner_ref['member']}" in target_symbols:
+                matched = True
+        if matched:
+            owner_files.append(file_key)
+            seen.add(file_key)
+    return owner_files
+
+
+def _extract_contract_maps_from_item(item: dict) -> tuple[str, Dict[str, Any], Dict[str, List[str]]]:
+    if not isinstance(item, dict):
+        return "", {}, {}
+    file_key = sanitize_todo_file_name(
+        str(item.get("path") or item.get("file") or item.get("target_file") or "")
+    )
+    if not file_key:
+        return "", {}, {}
+
+    required_top_level = _normalize_string_list(item.get("required_top_level"))
+    required_methods_raw = item.get("required_methods")
+    exact_params_raw = item.get("exact_params")
+    runtime_inputs = _normalize_string_list(item.get("runtime_inputs"))
+    runtime_outputs = _normalize_string_list(item.get("runtime_outputs"))
+    config_keys = _normalize_string_list(item.get("config_keys"))
+    behavioral_invariants = _normalize_string_list(item.get("behavioral_invariants"))
+
+    required_methods: Dict[str, List[str]] = {}
+    if isinstance(required_methods_raw, dict):
+        for class_name, methods in required_methods_raw.items():
+            class_key = str(class_name).strip()
+            normalized_methods = _normalize_string_list(methods)
+            if class_key and normalized_methods:
+                required_methods[class_key] = normalized_methods
+
+    exact_params: Dict[str, List[str]] = {}
+    if isinstance(exact_params_raw, dict):
+        for symbol_name, params in exact_params_raw.items():
+            symbol_key = str(symbol_name).strip()
+            normalized_params = _normalize_string_list(params)
+            if symbol_key and normalized_params:
+                exact_params[symbol_key] = normalized_params
+
+    stub_contract = {}
+    runtime_contract = {}
+    if required_top_level or required_methods or exact_params:
+        stub_contract = {
+            "required_top_level": required_top_level,
+            "required_methods": required_methods,
+            "exact_params": exact_params,
+        }
+    if runtime_inputs or runtime_outputs or config_keys or behavioral_invariants:
+        runtime_contract = {
+            "runtime_inputs": runtime_inputs,
+            "runtime_outputs": runtime_outputs,
+            "config_keys": config_keys,
+            "behavioral_invariants": behavioral_invariants,
+        }
+    return file_key, stub_contract, runtime_contract
 
 
 def _build_feature_metadata(design_payload: dict, task_payload: dict) -> Dict[str, Any]:
@@ -331,6 +457,22 @@ def _build_feature_metadata(design_payload: dict, task_payload: dict) -> Dict[st
             "Public interface changes",
         )
     )
+    constructor_instantiation_changes = _normalize_string_matrix(
+        _get_key(
+            task_payload,
+            "Constructor Instantiation Changes",
+            "constructor_instantiation_changes",
+            "Constructor instantiation changes",
+        )
+    )
+    anti_simplification_constraints = _normalize_string_matrix(
+        _get_key(
+            task_payload,
+            "Anti-Simplification Constraints",
+            "anti_simplification_constraints",
+            "Anti simplification constraints",
+        )
+    )
     forbidden_file_names = _normalize_string_list(
         _get_key(
             task_payload,
@@ -347,6 +489,23 @@ def _build_feature_metadata(design_payload: dict, task_payload: dict) -> Dict[st
     )
     if not isinstance(modification_closure, list):
         modification_closure = []
+    interface_contracts = _get_key(
+        task_payload,
+        "Interface Contracts",
+        "interface_contracts",
+        "Interface contracts",
+    )
+    if not isinstance(interface_contracts, list):
+        interface_contracts = []
+
+    stub_contracts_by_file: Dict[str, Dict[str, Any]] = {}
+    runtime_contracts_by_file: Dict[str, Dict[str, List[str]]] = {}
+    for item in interface_contracts:
+        file_key, stub_contract, runtime_contract = _extract_contract_maps_from_item(item)
+        if stub_contract:
+            stub_contracts_by_file[file_key] = stub_contract
+        if runtime_contract:
+            runtime_contracts_by_file[file_key] = runtime_contract
 
     callsite_updates_by_file: Dict[str, List[str]] = {}
     for item in callsite_update_list:
@@ -362,13 +521,44 @@ def _build_feature_metadata(design_payload: dict, task_payload: dict) -> Dict[st
         detail_text = " | ".join(item).strip()
         if not detail_text:
             continue
+        owner_files = _infer_public_change_owner_files(item, modification_closure, interface_contracts)
         affected_files = []
         if len(item) >= 3:
             affected_files.extend(_extract_file_keys_from_text(item[2]))
         if not affected_files:
             affected_files.extend(_extract_file_keys_from_text(detail_text))
-        for file_key in affected_files:
+        for file_key in [*owner_files, *affected_files]:
             _append_unique(public_interface_changes_by_file, file_key, detail_text)
+
+    constructor_instantiation_changes_by_file: Dict[str, List[str]] = {}
+    for item in constructor_instantiation_changes:
+        detail_text = " | ".join(item).strip()
+        if not detail_text:
+            continue
+        owner_files = _infer_public_change_owner_files(item, modification_closure, interface_contracts)
+        affected_files = []
+        if len(item) >= 3:
+            affected_files.extend(_extract_file_keys_from_text(item[2]))
+        if not affected_files:
+            affected_files.extend(_extract_file_keys_from_text(detail_text))
+        for file_key in [*owner_files, *affected_files]:
+            _append_unique(constructor_instantiation_changes_by_file, file_key, detail_text)
+
+    anti_simplification_by_file: Dict[str, List[str]] = {}
+    for item in anti_simplification_constraints:
+        if not item:
+            continue
+        owner = sanitize_todo_file_name(item[0])
+        detail_text = " | ".join(item[1:]).strip() if len(item) > 1 else item[0]
+        if not detail_text:
+            continue
+        detail_text = f"ANTI_SIMPLIFICATION: {detail_text}"
+        affected_files = []
+        if len(item) >= 3:
+            affected_files.extend(_extract_file_keys_from_text(item[2]))
+        for file_key in [owner, *affected_files]:
+            if file_key:
+                _append_unique(anti_simplification_by_file, file_key, detail_text)
 
     new_files_by_path: Dict[str, List[str]] = {}
     for item in new_files_justification:
@@ -388,10 +578,17 @@ def _build_feature_metadata(design_payload: dict, task_payload: dict) -> Dict[st
         "registry_factory_touchpoints": registry_factory_touchpoints,
         "callsite_update_list": callsite_update_list,
         "public_interface_changes": public_interface_changes,
+        "constructor_instantiation_changes": constructor_instantiation_changes,
+        "anti_simplification_constraints": anti_simplification_constraints,
         "forbidden_file_names": forbidden_file_names,
         "modification_closure": modification_closure,
+        "interface_contracts": interface_contracts,
+        "stub_contracts_by_file": stub_contracts_by_file,
+        "runtime_contracts_by_file": runtime_contracts_by_file,
         "callsite_updates_by_file": callsite_updates_by_file,
         "public_interface_changes_by_file": public_interface_changes_by_file,
+        "constructor_instantiation_changes_by_file": constructor_instantiation_changes_by_file,
+        "anti_simplification_by_file": anti_simplification_by_file,
         "new_files_by_path": new_files_by_path,
     }
 
@@ -399,12 +596,12 @@ def _build_feature_metadata(design_payload: dict, task_payload: dict) -> Dict[st
 def _load_planning_context_texts(output_dir: str) -> list:
     """Prefer exact stage outputs from planning_response.json; fallback to legacy trajectories."""
     planning_response_path = os.path.join(output_dir, "planning_response.json")
+    raw_contexts = []
     if os.path.exists(planning_response_path):
         try:
             with open(planning_response_path, encoding="utf-8") as f:
                 responses = json.load(f)
             if isinstance(responses, list):
-                context_lst = []
                 for item in responses:
                     content = (
                         item.get("choices", [{}])[0]
@@ -413,12 +610,30 @@ def _load_planning_context_texts(output_dir: str) -> list:
                     )
                     content = _strip_reasoning_markers(content)
                     if content:
-                        context_lst.append(content)
-                if context_lst:
-                    return context_lst[:3]
+                        raw_contexts.append(content)
         except Exception:
             pass
-    return extract_planning(f'{output_dir}/planning_trajectories.json')
+    if not raw_contexts:
+        raw_contexts = extract_planning(f'{output_dir}/planning_trajectories.json')
+
+    if not raw_contexts:
+        return []
+
+    semantic_contexts = list(raw_contexts[:2])
+    task_payload = _load_optional_json(output_dir, "task_list.json")
+    closure_payload = _load_optional_json(output_dir, PLANNING_CLOSURE_FILENAME)
+    interface_payload = _load_optional_json(output_dir, PLANNING_INTERFACE_CONTRACTS_FILENAME)
+    legacy_contract_payload = _load_optional_json(output_dir, PLANNING_CONTRACTS_FILENAME)
+    merged_task_payload = _merge_planning_payloads(
+        task_payload,
+        closure_payload=closure_payload or legacy_contract_payload,
+        interface_payload=interface_payload if interface_payload else None,
+    )
+    if merged_task_payload:
+        semantic_contexts.append(json.dumps(merged_task_payload, ensure_ascii=False, indent=2))
+    elif len(raw_contexts) > 2:
+        semantic_contexts.append(raw_contexts[2])
+    return semantic_contexts
 
 
 def _load_optional_json(output_dir: str, file_name: str) -> Dict[str, Any]:
@@ -431,6 +646,21 @@ def _load_optional_json(output_dir: str, file_name: str) -> Dict[str, Any]:
         return payload if isinstance(payload, dict) else {}
     except Exception:
         return {}
+
+
+def _merge_planning_payloads(
+    task_payload: dict | None,
+    closure_payload: dict | None = None,
+    interface_payload: dict | None = None,
+) -> Dict[str, Any]:
+    merged = {}
+    if isinstance(task_payload, dict):
+        merged.update(task_payload)
+    if isinstance(closure_payload, dict):
+        merged.update(closure_payload)
+    if isinstance(interface_payload, dict):
+        merged.update(interface_payload)
+    return merged
 
 
 def load_repo_index_artifacts(output_dir: str) -> Dict[str, Dict[str, Any]]:
@@ -612,6 +842,16 @@ def load_pipeline_context(output_dir: str) -> PipelineContext:
     else:
         task_source_text = context_lst[2] if len(context_lst) > 2 else ""
         task_list, task_parse_ok = _parse_structured_payload_with_status(task_source_text)
+
+    closure_payload = _load_optional_json(output_dir, PLANNING_CLOSURE_FILENAME)
+    interface_payload = _load_optional_json(output_dir, PLANNING_INTERFACE_CONTRACTS_FILENAME)
+    legacy_contract_payload = _load_optional_json(output_dir, PLANNING_CONTRACTS_FILENAME)
+    merged_task_payload = _merge_planning_payloads(
+        task_list,
+        closure_payload=closure_payload or legacy_contract_payload,
+        interface_payload=interface_payload if interface_payload else None,
+    )
+    task_list = merged_task_payload if merged_task_payload else task_list
 
     feature_metadata = _build_feature_metadata(design_payload, task_list)
     repo_index_artifacts = load_repo_index_artifacts(output_dir)

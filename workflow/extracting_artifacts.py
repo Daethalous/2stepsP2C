@@ -8,6 +8,9 @@ from core.logger import get_logger
 from core.utils import extract_planning, content_to_json, format_json_data, extract_content_block
 
 logger = get_logger(__name__)
+PLANNING_CONTRACTS_FILENAME = "planning_contracts.json"
+PLANNING_CLOSURE_FILENAME = "planning_closure.json"
+PLANNING_INTERFACE_CONTRACTS_FILENAME = "planning_interface_contracts.json"
 
 
 def _strip_reasoning_markers(text: str) -> str:
@@ -63,6 +66,27 @@ def _load_planning_stage_outputs(output_dir: str) -> list:
     return extract_planning(f'{output_dir}/planning_trajectories.json')
 
 
+def _load_optional_json(output_dir: str, file_name: str) -> dict:
+    path = os.path.join(output_dir, file_name)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            payload = json.load(f)
+        return payload if isinstance(payload, dict) else {}
+    except Exception:
+        return {}
+
+
+def _merge_planning_payloads(closure_payload: dict | None, interface_payload: dict | None) -> dict:
+    merged = {}
+    if isinstance(closure_payload, dict):
+        merged.update(closure_payload)
+    if isinstance(interface_payload, dict):
+        merged.update(interface_payload)
+    return merged
+
+
 def run_extracting_artifacts(output_dir: str) -> None:
     context_lst = _load_planning_stage_outputs(output_dir)
 
@@ -113,11 +137,44 @@ def run_extracting_artifacts(output_dir: str) -> None:
 
     os.makedirs(artifact_output_dir, exist_ok=True)
 
-    arch_design = content_to_json(context_lst[1])
-    logic_design = content_to_json(context_lst[2])
+    arch_design = content_to_json(context_lst[1]) if len(context_lst) > 1 else {}
+    logic_design = content_to_json(context_lst[2]) if len(context_lst) > 2 else {}
+    closure_payload = _load_optional_json(output_dir, PLANNING_CLOSURE_FILENAME)
+    interface_payload = _load_optional_json(output_dir, PLANNING_INTERFACE_CONTRACTS_FILENAME)
+    legacy_contract_payload = _load_optional_json(output_dir, PLANNING_CONTRACTS_FILENAME)
+    for candidate in context_lst[3:]:
+        parsed_candidate = content_to_json(candidate)
+        if isinstance(parsed_candidate, dict) and any(
+            key in parsed_candidate
+            for key in (
+                "Modification Closure",
+                "Callsite Update List",
+            )
+        ):
+            closure_payload = closure_payload or parsed_candidate
+        if isinstance(parsed_candidate, dict) and any(
+            key in parsed_candidate
+            for key in (
+                "Interface Contracts",
+                "Public Interface Changes",
+                "Anti-Simplification Constraints",
+                "Forbidden File Names",
+            )
+        ):
+            interface_payload = interface_payload or parsed_candidate
+
+    combined_contracts = _merge_planning_payloads(
+        closure_payload or legacy_contract_payload,
+        interface_payload if interface_payload else None,
+    )
+    if not combined_contracts:
+        combined_contracts = legacy_contract_payload
 
     formatted_arch_design = format_json_data(arch_design)
     formatted_logic_design = format_json_data(logic_design)
+    formatted_closure = format_json_data(closure_payload) if closure_payload else ""
+    formatted_interface = format_json_data(interface_payload) if interface_payload else ""
+    formatted_contracts = format_json_data(combined_contracts) if combined_contracts else ""
 
     with open(f"{artifact_output_dir}/1.1_overall_plan.txt", "w", encoding="utf-8") as f:
         f.write(context_lst[0])
@@ -127,6 +184,33 @@ def run_extracting_artifacts(output_dir: str) -> None:
 
     with open(f"{artifact_output_dir}/1.3_logic_design.txt", "w", encoding="utf-8") as f:
         f.write(formatted_logic_design)
+
+    if formatted_closure:
+        with open(f"{artifact_output_dir}/1.35_integration_closure.txt", "w", encoding="utf-8") as f:
+            f.write(formatted_closure)
+    elif os.path.exists(os.path.join(output_dir, PLANNING_CLOSURE_FILENAME)):
+        shutil.copy(
+            os.path.join(output_dir, PLANNING_CLOSURE_FILENAME),
+            f"{artifact_output_dir}/1.35_integration_closure.txt",
+        )
+
+    if formatted_interface:
+        with open(f"{artifact_output_dir}/1.36_interface_contracts.txt", "w", encoding="utf-8") as f:
+            f.write(formatted_interface)
+    elif os.path.exists(os.path.join(output_dir, PLANNING_INTERFACE_CONTRACTS_FILENAME)):
+        shutil.copy(
+            os.path.join(output_dir, PLANNING_INTERFACE_CONTRACTS_FILENAME),
+            f"{artifact_output_dir}/1.36_interface_contracts.txt",
+        )
+
+    if formatted_contracts:
+        with open(f"{artifact_output_dir}/1.35_integration_contracts.txt", "w", encoding="utf-8") as f:
+            f.write(formatted_contracts)
+    elif os.path.exists(os.path.join(output_dir, PLANNING_CONTRACTS_FILENAME)):
+        shutil.copy(
+            os.path.join(output_dir, PLANNING_CONTRACTS_FILENAME),
+            f"{artifact_output_dir}/1.35_integration_contracts.txt",
+        )
 
     shutil.copy(config_path, f"{artifact_output_dir}/1.4_config.yaml")
 
