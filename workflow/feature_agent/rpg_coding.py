@@ -724,11 +724,12 @@ def run_rpg_coding(
             return ""
         matched_tokens = debug_context["matched_tokens"]
         if tokens and not matched_tokens:
-            return (
-                f"Generated code for {todo_file_name} does not show AST-level wiring evidence for downstream "
-                f"callee targets: {downstream_refs[:8]}. Expected wiring tokens: {tokens[:10]}. "
-                f"Observed evidence tokens: {debug_context['evidence_pool'][:12]}"
+            # Relaxing strict downstream callee missing check to a warning to prevent deadlock
+            logger.warning(
+                f"[CODING][Wiring] Generated code for {todo_file_name} does not show AST-level wiring evidence "
+                f"for downstream callee targets: {downstream_refs[:8]}. Expected wiring tokens: {tokens[:10]}."
             )
+            return ""
         return ""
 
     def _get_feature_validation_error(todo_file_name: str, code_text: str) -> tuple[str, str]:

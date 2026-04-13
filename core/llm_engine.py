@@ -39,13 +39,17 @@ def sanitize_payload(obj):
     if isinstance(obj, list):
         return [sanitize_payload(x) for x in obj]
     if isinstance(obj, dict):
-        return {k: sanitize_payload(v) for k, v in obj.items()}
+        return {str(k): sanitize_payload(v) for k, v in obj.items()}
     return obj
 
+def sanitize_and_dump_reload(obj):
+    # Ensure what pydantic serializes is exactly what JSON handles cleanly natively
+    safe_obj = sanitize_payload(obj)
+    return json.loads(json.dumps(safe_obj, ensure_ascii=False))
 
 def prepare_messages_for_api(messages: list, **kwargs) -> tuple[list, dict, int]:
-    safe_messages = sanitize_payload(messages)
-    safe_kwargs = sanitize_payload(kwargs)
+    safe_messages = sanitize_and_dump_reload(messages)
+    safe_kwargs = sanitize_and_dump_reload(kwargs)
     dumped = json.dumps(
         {
             "model": safe_kwargs.get("model", ""),
@@ -63,8 +67,8 @@ def create_client() -> OpenAI:
 
 
 def chat_completion(client: OpenAI, gpt_version: str, messages: list, **kwargs):
-    safe_messages = sanitize_payload(messages)
-    safe_kwargs = sanitize_payload(kwargs)
+    safe_messages = sanitize_and_dump_reload(messages)
+    safe_kwargs = sanitize_and_dump_reload(kwargs)
     if "o3-mini" in gpt_version:
         safe_kwargs.setdefault("reasoning_effort", "high")
     return client.chat.completions.create(
